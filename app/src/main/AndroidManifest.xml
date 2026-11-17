@@ -33,7 +33,7 @@
         android:name=".LocationApp"
         android:allowBackup="true"
         android:icon="@android:drawable/ic_menu_mylocation"
-        android:label="LocationSpoofer"
+        android:label="R7VqzN"
         android:roundIcon="@android:drawable/ic_menu_mylocation"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
@@ -51,7 +51,16 @@
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"
             android:value="Io41bNEhfVx3CCsud5jjrft3UOpeh2WF" />
-        
+
+        <receiver
+            android:name=".LepaoUserReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.kdzw8p.mqa.v71f.LEPAO_USER" />
+                <action android:name="com.kdzw8p.mqa.v71f.LEPAO_WX_RESULT" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

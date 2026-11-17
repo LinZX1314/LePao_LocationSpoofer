@@ -1,7 +1,7 @@
 # ColorOS 16 适配说明
 
 适用范围：ColorOS 系列、ROM 主版本 16、Android API 36（全局方案）。其他 ColorOS 版本与 OxygenOS 走厂商级适配器 `ColorOsVendor`，即通用 AOSP 基线。
-验证状态汇总见 [ADAPTATION_PROGRESS.md](../../ADAPTATION_PROGRESS.md)，适配框架说明见 [vendor/README.md](../../xposed/src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/README.md)。
+验证状态汇总见 [ADAPTATION_PROGRESS.md](../../ADAPTATION_PROGRESS.md)，适配框架说明见 [vendor/README.md](../../xposed/src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/README.md)。
 
 ## 接入方式
 

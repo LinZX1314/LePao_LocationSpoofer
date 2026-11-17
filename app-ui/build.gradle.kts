@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vincenthzr.locationspoofer.ui"
+    namespace = "com.kdzw8p.mqa.v71f.ui"
     compileSdk = 37
 
     defaultConfig {
@@ -101,6 +101,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.play.services.location)
     implementation(libs.okhttp)
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.0")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -119,4 +121,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

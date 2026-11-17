@@ -1,12 +1,12 @@
 name: 💡 Feature Request (English)
-description: Suggest an idea or feature enhancement for LocationSpoofer
+description: Suggest an idea or feature enhancement for R7VqzN
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for suggesting an enhancement for LocationSpoofer! Please describe your idea in detail below.
+        Thank you for suggesting an enhancement for R7VqzN! Please describe your idea in detail below.
 
   - type: textarea
     id: problem_statement

@@ -2,11 +2,11 @@
 
 ---
 
-# LocationSpoofer 贡献指南
+# R7VqzN 贡献指南
 
-感谢你关注并愿意为 LocationSpoofer 做出贡献！🎉
+感谢你关注并愿意为 R7VqzN 做出贡献！🎉
 
-来自开源社区的每一份贡献都能帮助 LocationSpoofer 变得更加稳定、高效与可靠。
+来自开源社区的每一份贡献都能帮助 R7VqzN 变得更加稳定、高效与可靠。
 
 ---
 
@@ -26,7 +26,7 @@
 
 ## 行为准则
 
-本项目及所有参与者均受 [LocationSpoofer 行为准则](CODE_OF_CONDUCT.md) 的约束。参与项目即表示你同意遵守该准则。若发现违规行为，请及时联系项目维护者。
+本项目及所有参与者均受 [R7VqzN 行为准则](CODE_OF_CONDUCT.md) 的约束。参与项目即表示你同意遵守该准则。若发现违规行为，请及时联系项目维护者。
 
 ---
 
@@ -35,7 +35,7 @@
 ### 反馈缺陷 (Bug)
 
 在提交 Issue 前，请确认：
-* 检索 [已有的 Issues](https://github.com/your-username/LocationSpoofer/issues) 确保问题未被重复汇报。
+* 检索 [已有的 Issues](https://github.com/your-username/R7VqzN/issues) 确保问题未被重复汇报。
 * 确保运行在支持的基础环境中（**Android 8.0+**、**KernelSU / APatch / Magisk**、**LSPosed API 101+**）。
 
 通过 **缺陷报告模板** 提交问题时，请尽可能提供详细信息：
@@ -79,10 +79,10 @@
 ### 编译构建
 ```bash
 # 克隆仓库
-git clone https://github.com/your-username/LocationSpoofer.git
+git clone https://github.com/your-username/R7VqzN.git
 
 # 进入目录
-cd LocationSpoofer
+cd R7VqzN
 
 # 编译 Debug APK
 ./gradlew assembleDebug
@@ -95,7 +95,7 @@ cd LocationSpoofer
 
 ## 项目架构与开发规范
 
-LocationSpoofer 基于 **MVVM + Clean Architecture** 构建，代码按职责拆分为 6 个 Gradle 模块：
+R7VqzN 基于 **MVVM + Clean Architecture** 构建，代码按职责拆分为 6 个 Gradle 模块：
 
 | 模块 | 类型 | 职责 |
 |---|---|---|
@@ -113,13 +113,13 @@ LocationSpoofer 基于 **MVVM + Clean Architecture** 构建，代码按职责拆
 * **依赖注入**：Koin。按模块拆分为 `coreDataModule`（`core-data`）、`serviceModule`（`service`）、`viewModelModule`（`app-ui`），由 `app` 模块的 `appModules`（`List<Module>`）统一聚合并在 `LocationApp.onCreate()` 中 `startKoin`。新增可注入类型时，在对应模块的 `di/XxxModule.kt` 里补充绑定，不要绕开 DI 手动 `new`。
 * **本地存储**：Room Database（SQLite，位于 `core-data`），涉及空间查询的部分需配备空间索引优化。
 * **Xposed Hook 核心层**：
-  * 位于 `xposed` 模块的 `com.vincenthzr.locationspoofer.xposed` 包，入口类 `LocationHooker`；具体 Hook 实现按类型拆分在 `hooks/`（定位/GNSS/地图 SDK/计步/反检测）与 `hooks/network/`（Wi-Fi/基站/蓝牙/连接状态）两个子包，新增 Hook 时优先归类到已有子包，而不是堆到 `xposed` 根包或 `LocationHooker.kt` 里。
+  * 位于 `xposed` 模块的 `com.kdzw8p.mqa.v71f.xposed` 包，入口类 `LocationHooker`；具体 Hook 实现按类型拆分在 `hooks/`（定位/GNSS/地图 SDK/计步/反检测）与 `hooks/network/`（Wi-Fi/基站/蓝牙/连接状态）两个子包，新增 Hook 时优先归类到已有子包，而不是堆到 `xposed` 根包或 `LocationHooker.kt` 里。
   * 严格遵循 **LSPosed API 101+ / libxposed (Service 模式)** 规范。
   * Hook 调用只读 `LocationHooker` 的内存配置缓存；框架通知、远程文件读取和 JSON 解码必须在配置接收线程处理，路线派发与系统服务重试由独立定时器执行。
   * 两种变体统一使用 libxposed 远程偏好 / 远程文件传递完整配置快照；大配置先完成独立文件写入再发布指针。保留最新期望状态，发布失败与重连时重试。不要恢复公共配置文件、主线程 IPC 或自定义 SELinux 授权。
   * MultiDex 兼容安全性：通过动态 ClassLoader 拦截定位组件，并通过 `/proc/self/cmdline` 锁定宿主进程主包名，避免插件或内嵌 Webview 破坏全局上下文。
   * 保持调用栈深度清洗，避免暴露 Xposed 检查痕迹。
-  * **系统适配**：全局方案的系统服务类名、厂商差异一律写在 `hooks/vendor/` 的适配器里，共享 Hook 代码不写死类名。新增或修复某个系统的适配前，先读 [vendor/README.md](xposed/src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/README.md)（含完整检查清单）与 [ADAPTATION_GUIDE.md](xposed/ADAPTATION_GUIDE.md)，验证后更新 [ADAPTATION_PROGRESS.md](ADAPTATION_PROGRESS.md)。
+  * **系统适配**：全局方案的系统服务类名、厂商差异一律写在 `hooks/vendor/` 的适配器里，共享 Hook 代码不写死类名。新增或修复某个系统的适配前，先读 [vendor/README.md](xposed/src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/README.md)（含完整检查清单）与 [ADAPTATION_GUIDE.md](xposed/ADAPTATION_GUIDE.md)，验证后更新 [ADAPTATION_PROGRESS.md](ADAPTATION_PROGRESS.md)。
 
 ### 编码规范
 
@@ -158,4 +158,4 @@ docs: 更新 README 中关于 LSPosed API 101+ 的规范描述
 
 ---
 
-再次感谢你对 LocationSpoofer 开源社区的支持与贡献！
+再次感谢你对 R7VqzN 开源社区的支持与贡献！

@@ -20,7 +20,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LocationSpoofer"
+rootProject.name = "R7VqzN"
 include(":app")
 include(":app-ui")
 include(":service")

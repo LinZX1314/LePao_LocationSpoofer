@@ -1,12 +1,12 @@
 name: 💡 功能建议 (Feature Request)
-description: 为 LocationSpoofer 提出新的功能构想或体验改进建议
+description: 为 R7VqzN 提出新的功能构想或体验改进建议
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        感谢你为 LocationSpoofer 提出宝贵的改进建议！请在下方详细描述你的功能设想。
+        感谢你为 R7VqzN 提出宝贵的改进建议！请在下方详细描述你的功能设想。
 
   - type: textarea
     id: problem_statement

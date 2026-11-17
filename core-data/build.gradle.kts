@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vincenthzr.locationspoofer.data"
+    namespace = "com.kdzw8p.mqa.v71f.data"
     compileSdk = 37
 
     defaultConfig {

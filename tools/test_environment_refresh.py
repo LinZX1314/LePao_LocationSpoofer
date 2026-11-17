@@ -7,7 +7,7 @@ import subprocess
 
 result = subprocess.run(
     ["adb", "shell", "am", "instrument", "-w", "-e", "check", "environment-refresh",
-     "com.vincenthzr.locationspoofer.test/com.vincenthzr.locationspoofer.SystemFilesInstrumentation"],
+     "com.kdzw8p.mqa.v71f.test/com.kdzw8p.mqa.v71f.SystemFilesInstrumentation"],
     text=True, capture_output=True,
 )
 print(result.stdout, end="")

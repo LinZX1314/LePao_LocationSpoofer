@@ -123,13 +123,13 @@ jobs:
           cat >> changelog.txt <<'NOTES'
 
           ## 安装包说明
-          - `LocationSpoofer-scoped-*`：非全局方案，在 LSPosed 作用域中勾选需要模拟的应用
-          - `LocationSpoofer-global-*`：全局方案，作用域勾选系统框架、电话、蓝牙，对全设备生效
+          - `R7VqzN-scoped-*`：非全局方案，在 LSPosed 作用域中勾选需要模拟的应用
+          - `R7VqzN-global-*`：全局方案，作用域勾选系统框架、电话、蓝牙，对全设备生效
           - 两个方案二选一安装；绝大多数设备选择 `arm64-v8a`，32 位设备选择 `armeabi-v7a`
           - 各系统的适配进度见 [ADAPTATION_PROGRESS.md](${{ github.server_url }}/${{ github.repository }}/blob/main/ADAPTATION_PROGRESS.md)
 
           ## 从 2.x 版本升级
-          3.0 起包名改为 `com.vincenthzr.locationspoofer`，签名也已更换，**不能覆盖安装旧版**（旧包名 `com.suseoaa.locationspoofer`）——直接安装会多出一个独立的新应用，旧版的数据也不会带过来。请按以下步骤迁移：
+          3.0 起包名改为 `com.kdzw8p.mqa.v71f`，签名也已更换，**不能覆盖安装旧版**（旧包名 `com.suseoaa.R7VqzN`）——直接安装会多出一个独立的新应用，旧版的数据也不会带过来。请按以下步骤迁移：
           1. 在旧版的「导入与导出数据」中导出备份（收藏位置、路线、采集数据等）；
           2. 在 LSPosed 中停用旧版模块，然后卸载旧版；
           3. 按上面的说明选择方案安装新版，在 LSPosed 中启用新模块、勾选作用域，并重启设备；
@@ -170,7 +170,7 @@ jobs:
           ./gradlew --no-daemon :app:assembleScopedRelease
           ./gradlew --no-daemon :app:assembleGlobalRelease
 
-          # 统一重命名为 LocationSpoofer-<scheme>-<abi>-<tag>.apk 收集到 dist 目录。
+          # 统一重命名为 R7VqzN-<scheme>-<abi>-<tag>.apk 收集到 dist 目录。
           # App 内更新检查（UpdateViewModel.isAssetForCurrentScheme）依赖文件名里的 -<scheme>- 标记挑选对应方案的安装包。
           TAG="${{ steps.check_version.outputs.tag }}"
           DIST_DIR="app/build/outputs/apk/dist"
@@ -180,18 +180,18 @@ jobs:
             find "$APK_DIR" -name "*.apk" -print0 | while IFS= read -r -d '' file; do
               BASENAME=$(basename "$file")
               if [[ "$BASENAME" == *"arm64-v8a"* ]]; then
-                mv "$file" "$DIST_DIR/LocationSpoofer-$SCHEME-arm64-v8a-$TAG.apk"
+                mv "$file" "$DIST_DIR/R7VqzN-$SCHEME-arm64-v8a-$TAG.apk"
               elif [[ "$BASENAME" == *"armeabi-v7a"* ]]; then
-                mv "$file" "$DIST_DIR/LocationSpoofer-$SCHEME-armeabi-v7a-$TAG.apk"
+                mv "$file" "$DIST_DIR/R7VqzN-$SCHEME-armeabi-v7a-$TAG.apk"
               else
-                mv "$file" "$DIST_DIR/LocationSpoofer-$SCHEME-$TAG.apk"
+                mv "$file" "$DIST_DIR/R7VqzN-$SCHEME-$TAG.apk"
               fi
             done
           done
           ls -l "$DIST_DIR"
 
           # 2 个方案 × 2 个 ABI，缺任何一个都不发版，避免发出只有单一方案的残缺 Release
-          APK_COUNT=$(find "$DIST_DIR" -name "LocationSpoofer-*.apk" | wc -l)
+          APK_COUNT=$(find "$DIST_DIR" -name "R7VqzN-*.apk" | wc -l)
           if [ "$APK_COUNT" -ne 4 ]; then
             echo "错误：预期 4 个安装包（scoped/global × arm64-v8a/armeabi-v7a），实际 $APK_COUNT 个，终止发版。"
             exit 1
@@ -202,9 +202,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.check_version.outputs.tag }}
-          name: LocationSpoofer ${{ steps.check_version.outputs.tag }}
+          name: R7VqzN ${{ steps.check_version.outputs.tag }}
           body_path: changelog.txt
           prerelease: ${{ steps.check_version.outputs.is_prerelease == 'true' }}
-          files: app/build/outputs/apk/dist/LocationSpoofer-*.apk
+          files: app/build/outputs/apk/dist/R7VqzN-*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

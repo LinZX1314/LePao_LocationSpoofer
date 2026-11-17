@@ -4,7 +4,7 @@
 只登记在真机上实际测过的结果，没测过的一律写"未验证"，不要凭推测填写。
 
 - 两个方案的区别见 Release 说明：`scoped` = 非全局（Hook 作用域内的目标 App），`global` = 全局（Hook 系统进程）。
-- 全局方案按系统走不同的适配器，架构说明见 [vendor/README.md](xposed/src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/README.md)，
+- 全局方案按系统走不同的适配器，架构说明见 [vendor/README.md](xposed/src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/README.md)，
   如何定位系统接口见 [ADAPTATION_GUIDE.md](xposed/ADAPTATION_GUIDE.md)。
 
 - 全局方案实测时，App"系统适配 → Hook 运行状态"页会列出每个组件是否找到类、方法是否挂上，可作为登记依据。
@@ -20,7 +20,7 @@
 
 | 系统 | 适配器 | 状态 | 已验证的系统版本 | 备注 |
 |---|---|---|---|---|
-| 小米 HyperOS / MIUI | `HyperOsVendor` | ✅ | HyperOS 4、HyperOS 3 | HyperOS 4 为完整实测；HyperOS 3（REDMI K90 Ultra / OS3.0.308.0.WHPCNXM）实测 global 定位注入可用，其余组件未逐一复验，见 [#74](https://github.com/HuangZhuoRui/LocationSpoofer/issues/74) |
+| 小米 HyperOS / MIUI | `HyperOsVendor` | ✅ | HyperOS 4、HyperOS 3 | HyperOS 4 为完整实测；HyperOS 3（REDMI K90 Ultra / OS3.0.308.0.WHPCNXM）实测 global 定位注入可用，其余组件未逐一复验，见 [#74](https://github.com/HuangZhuoRui/R7VqzN/issues/74) |
 | OPPO ColorOS / 一加 OxygenOS | `ColorOs16Vendor`（API 36）/ `ColorOsVendor` | ⚠️ | ColorOS 16 / Android 16 | PJX110 部分实测；电话与蓝牙通过，持续定位及运动应用仍待复测；OxygenOS 未验证。见 [范围与截图](docs/adaptation/coloros16.md) |
 | 三星 One UI | `OneUiVendor` | ❔ | — | 同上 |
 | vivo OriginOS、荣耀 MagicOS、魅族 Flyme 等 | 无（落到 `AospVendor`） | ❔ | — | 尚无专用适配器 |
@@ -56,7 +56,7 @@
 | 设备 | 系统版本 | 验证日期 | 备注 |
 |---|---|---|---|
 | 小米 17 Pro Max | HyperOS 4 | 2026-09 | 全局方案开发与验证机 |
-| REDMI K90 Ultra (M332BF / warsaw) | HyperOS 3 / OS3.0.308.0.WHPCNXM / Android 16 | 2026-09 | KernelSU (ksud 4.2.0) + LSPosed v2.2.0（7854），global v3.0.0-beta-2 (arm64-v8a)；实测定位注入可用（`getLastLocation` provider=fused/network），其余组件未逐一复验，见 [#74](https://github.com/HuangZhuoRui/LocationSpoofer/issues/74) |
+| REDMI K90 Ultra (M332BF / warsaw) | HyperOS 3 / OS3.0.308.0.WHPCNXM / Android 16 | 2026-09 | KernelSU (ksud 4.2.0) + LSPosed v2.2.0（7854），global v3.0.0-beta-2 (arm64-v8a)；实测定位注入可用（`getLastLocation` provider=fused/network），其余组件未逐一复验，见 [#74](https://github.com/HuangZhuoRui/R7VqzN/issues/74) |
 | PJX110 | ColorOS 16 / PJX110_16.0.1.301 / Android 16 | 2026-09 | LSPosed IT 2.1.1（7846），仅限上述部分验证 |
 
 ---

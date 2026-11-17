@@ -9,8 +9,14 @@
     <string name="fj_preset_walking">Walk</string>
     <string name="fj_preset_running">Run</string>
     <string name="fj_preset_cycling">Bike</string>
+    <string name="fj_preset_ebike">E-Bike</string>
     <string name="fj_preset_driving">Drive</string>
     <string name="fj_preset_custom">Custom</string>
+    <string name="fj_opacity">Opacity</string>
+    <string name="fj_cadence">Cadence (steps per minute)</string>
+    <string name="fj_cadence_short">Cadence</string>
+    <string name="fj_cadence_value">%1$d spm</string>
+    <string name="fj_speed_value">%1$.1f m/s</string>
     <string name="fj_pause">Pause</string>
     <string name="fj_resume">Start</string>
     <string name="fj_record">Record</string>
@@ -20,4 +26,15 @@
     <string name="fj_save">Save</string>
     <string name="fj_discard">Discard</string>
     <string name="fj_saved_toast">Route saved</string>
+    <string name="fj_netblock">Cut network for Lepao</string>
+    <string name="fj_netblock_on">Network cut</string>
+    <string name="fj_netblock_off">Cut network</string>
+    <string name="fj_autostop">Auto-stop</string>
+    <string name="fj_autostop_on">Auto-stop on</string>
+    <string name="fj_autostop_off">Auto-stop off</string>
+    <string name="fj_autostop_km">km</string>
+    <string name="fj_expand">Expand joystick</string>
+    <string name="fj_move">Move window</string>
+    <string name="fj_speed_short">m/s</string>
+    <string name="fj_invalid_range">Enter a value from %1$s to %2$s</string>
 </resources>

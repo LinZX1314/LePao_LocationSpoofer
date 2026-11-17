@@ -9,6 +9,11 @@
     <string name="fj_preset_walking">步行</string>
     <string name="fj_preset_running">跑步</string>
     <string name="fj_preset_cycling">骑行</string>
+    <string name="fj_preset_ebike">电动车</string>
+    <string name="fj_cadence">步频（步/分钟）</string>
+    <string name="fj_cadence_short">步频</string>
+    <string name="fj_cadence_value">%1$d 步/分</string>
+    <string name="fj_speed_value">%1$.1f 米/秒</string>
     <string name="fj_preset_driving">驾车</string>
     <string name="fj_preset_custom">自定义</string>
     <string name="fj_pause">暂停</string>
@@ -20,4 +25,16 @@
     <string name="fj_save">保存</string>
     <string name="fj_discard">放弃</string>
     <string name="fj_saved_toast">路线已保存</string>
+    <string name="fj_netblock">乐跑断网</string>
+    <string name="fj_netblock_on">已断网</string>
+    <string name="fj_netblock_off">一键断网</string>
+    <string name="fj_autostop">到点自动结束</string>
+    <string name="fj_autostop_on">自动结束已开</string>
+    <string name="fj_autostop_off">自动结束已关</string>
+    <string name="fj_autostop_km">公里</string>
+    <string name="fj_expand">展开摇杆</string>
+    <string name="fj_move">移动悬浮窗</string>
+    <string name="fj_speed_short">米/秒</string>
+    <string name="fj_opacity">透明度</string>
+    <string name="fj_invalid_range">请输入%1$s至%2$s之间的有效数值</string>
 </resources>

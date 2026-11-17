@@ -6,7 +6,7 @@
 
 ## Supported Versions
 
-LocationSpoofer is actively maintained. Security updates and bug fixes are prioritized on the latest release and the `main` branch.
+R7VqzN is actively maintained. Security updates and bug fixes are prioritized on the latest release and the `main` branch.
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -18,12 +18,12 @@ LocationSpoofer is actively maintained. Security updates and bug fixes are prior
 
 ## Reporting a Vulnerability
 
-We take the security and stability of LocationSpoofer seriously. If you discover a security vulnerability or critical risk, we appreciate your efforts in practicing responsible disclosure.
+We take the security and stability of R7VqzN seriously. If you discover a security vulnerability or critical risk, we appreciate your efforts in practicing responsible disclosure.
 
 ### How to Report
 
 1. **GitHub Security Advisories (Preferred)**:
-   Please report security vulnerabilities privately via GitHub's [Private Vulnerability Reporting](https://github.com/your-username/LocationSpoofer/security/advisories/new) feature on this repository.
+   Please report security vulnerabilities privately via GitHub's [Private Vulnerability Reporting](https://github.com/your-username/R7VqzN/security/advisories/new) feature on this repository.
 
 2. **Alternative Disclosure**:
    If private vulnerability reporting is unavailable, you may contact the maintainers directly via our official community channels or Telegram group admins with detailed reproduction material.
@@ -45,4 +45,4 @@ To help us triage and resolve the issue quickly, please provide:
 
 ---
 
-Thank you for helping keep LocationSpoofer and our users safe!
+Thank you for helping keep R7VqzN and our users safe!

@@ -19,7 +19,7 @@
 
 本项目 Hook 的对象——`LocationManagerService`、`WifiServiceImpl`、`PhoneInterfaceManager`、`ConnectivityService`、`AppOpsService`、`TelephonyRegistry`……——全部是 **`system_server` 进程内部的实现类**，不是 Android SDK 对外暴露的公共 API。这意味着：
 
-* 它们**没有版本兼容承诺**。Google 每个 Android 大版本都可能重命名、拆分、合并这些类，或者把它们的返回类型从裸的 `List<T>` 换成 `ParceledListSlice<T>`（`getScanResults` 就是活生生的例子，见 [SystemWifiServiceHooker.kt](src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/SystemWifiServiceHooker.kt) 里的返回类型反射判断）。
+* 它们**没有版本兼容承诺**。Google 每个 Android 大版本都可能重命名、拆分、合并这些类，或者把它们的返回类型从裸的 `List<T>` 换成 `ParceledListSlice<T>`（`getScanResults` 就是活生生的例子，见 [SystemWifiServiceHooker.kt](src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/SystemWifiServiceHooker.kt) 里的返回类型反射判断）。
 * Android 12 起，部分系统服务（Wi-Fi、Connectivity 等）被搬进了 **APEX 模块**（`com.android.wifi`、`com.android.tethering` 等），运行在独立的 ClassLoader 里，`system_server` 的默认 ClassLoader 根本 `Class.forName` 不到它们。
 * **小米 HyperOS/MIUI、ColorOS、EMUI/HarmonyOS(套壳安卓的版本)** 这些定制 ROM，会在 AOSP 实现基础上插入自己的中间层、重写方法逻辑，甚至换掉整个实现类。同一个 Android 13，不同厂商的 `LocationManagerService` 内部字段名可能都不一样。
 
@@ -76,10 +76,10 @@ adb shell dumpsys package android      # 查看 framework 包的版本/签名信
 
 对于 APEX 模块化、或者初始化时机不确定的服务，本项目已经沉淀了一套通用兜底，新写 Hook 时直接复用，不要自己发明新写法：
 
-1. **[`SystemClassLocator.locate`](src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/SystemClassLocator.kt)**：按当前适配器给出的候选类名，依次在默认 ClassLoader、名字匹配的线程的 `contextClassLoader`（APEX 服务常挂在 `WifiHandlerThread` 这类专属线程上）、`ServiceManager.sCache` 里已注册实例的 ClassLoader、`LocalServices.sLocalServiceObjects`、`ApplicationLoaders` 与 APEX jar 里查找。用参数打开需要的层级，例如 Wi-Fi 服务：`locate(WIFI_SERVICE, cl, threadKeywords = listOf("Wifi", …), serviceNames = listOf("wifi"), deepScan = true)`；
+1. **[`SystemClassLocator.locate`](src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/SystemClassLocator.kt)**：按当前适配器给出的候选类名，依次在默认 ClassLoader、名字匹配的线程的 `contextClassLoader`（APEX 服务常挂在 `WifiHandlerThread` 这类专属线程上）、`ServiceManager.sCache` 里已注册实例的 ClassLoader、`LocalServices.sLocalServiceObjects`、`ApplicationLoaders` 与 APEX jar 里查找。用参数打开需要的层级，例如 Wi-Fi 服务：`locate(WIFI_SERVICE, cl, threadKeywords = listOf("Wifi", …), serviceNames = listOf("wifi"), deepScan = true)`；
 2. **拦截服务注册入口**：以上都找不到（服务在 Hook 时机还没初始化），就 Hook `SystemService.publishBinderService` / `ServiceManager.addService`，等服务真正注册时从实例拿到类再挂载——`LocationHooker` 的后台轮询线程也会反复重试直到成功。这类途径拿到类时调用 `HookStatus.classFound(...)` 记进运行状态报告。
 
-参考 [SystemWifiServiceHooker.kt](src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/SystemWifiServiceHooker.kt) 的 `hookSystemWifiService`。
+参考 [SystemWifiServiceHooker.kt](src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/SystemWifiServiceHooker.kt) 的 `hookSystemWifiService`。
 
 ### 方法五：动态插桩验证（无 Root 精确定位调用栈时用）
 
@@ -101,13 +101,13 @@ adb shell dumpsys package android      # 查看 framework 包的版本/签名信
 
 ## 按厂商 / 系统版本分包：vendor 适配框架
 
-上面讲的都是"怎么找到目标类"，找到之后**别把各家的类名/差异堆进同一个 Hook 函数里**——项目已经内置了一套适配框架，位于 [`hooks/vendor/`](src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/)，专门收纳这些差异。
+上面讲的都是"怎么找到目标类"，找到之后**别把各家的类名/差异堆进同一个 Hook 函数里**——项目已经内置了一套适配框架，位于 [`hooks/vendor/`](src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/)，专门收纳这些差异。
 
 适配粒度只分两层：**厂商**（是不是小米/HyperOS、OPPO/ColorOS……）和**系统大版本**（同一厂商内跨大版本更新，比如 HyperOS 3 升到 HyperOS 4）。不按具体机型（市场型号）分——同厂商子品牌/旗舰机型通常共用同一套系统，差异很小，没必要为每个机型单开文件。
 
 核心用法一句话：共享 Hook 代码通过 `SystemClassLocator.locate(组件, classLoader, …)` 查找系统服务类；各厂商的类名候选 / 定制逻辑写在 `vendor/profiles/` 下各自的 `object` 里，某厂商内需要跨版本区分时再在 `vendor/profiles/versions/` 下加一个继承 `SystemVersionVendor` 的适配器覆盖差异部分。系统识别规则（设备画像 → 系统家族）在 `core-geo` 的 `RomRules` 里，Hook 端和 App 端共用。**新增系统不用动任何共享 Hook 代码。**
 
-新增一个系统要改哪些文件的完整检查清单、三个扩展点（`classCandidates` / `additionalExemptPackages` / `installExtraHooks`）的取舍，见该包内的 [`README.md`](src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/README.md)。本文方法一~五定位到的差异，最终都应该落到对应的 vendor 适配器里，而不是散落在各个 `SystemXxxHooker` 中。
+新增一个系统要改哪些文件的完整检查清单、三个扩展点（`classCandidates` / `additionalExemptPackages` / `installExtraHooks`）的取舍，见该包内的 [`README.md`](src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/README.md)。本文方法一~五定位到的差异，最终都应该落到对应的 vendor 适配器里，而不是散落在各个 `SystemXxxHooker` 中。
 
 ---
 
@@ -128,7 +128,7 @@ adb shell dumpsys package android      # 查看 framework 包的版本/签名信
    * **未挂上方法 / 部分方法缺失**（方法后面是 `×0`）：类找对了，但方法被改名或挪走了 → 反编译确认后用 `installExtraHooks` 或版本级适配器补；
    * **等待服务启动**：服务还没注册，通常稍后刷新即可；一直如此说明注册拦截也没捕获到；
    * **报告来自上一次开机 / 没有读取到报告**：模块没在该进程生效，先检查 LSPosed 作用域和是否重启；
-   * 全部"已挂载"但目标应用仍拿到真实数据：方法挂上了但没触发（目标类找错了）或改写没生效（字段 / 返回类型分支没走对），这时再要完整的 `adb logcat | grep LocationSpoofer` 日志看 `[SysXxx]` 输出。
+   * 全部"已挂载"但目标应用仍拿到真实数据：方法挂上了但没触发（目标类找错了）或改写没生效（字段 / 返回类型分支没走对），这时再要完整的 `adb logcat | grep R7VqzN` 日志看 `[SysXxx]` 输出。
 2. 需要看某个类在该系统上到底有哪些方法 / 字段时，让反馈者打开状态页底部的"开机时转储系统服务结构"并重启，日志里会有每个候选类的完整方法和字段列表。
 3. 按[方法一](#方法一aosp-源码比对最快优先用)~[方法五](#方法五动态插桩验证无-root-精确定位调用栈时用)依次排查，确认新版本上目标类的真实包名、方法签名、返回类型/字段名。
 4. 按[防御性套路](#写-hook-时的防御性套路本项目的约定)落地代码：优先在现有的多候选名列表里追加新候选，而不是删掉旧的重写——保证老版本设备不受影响。

@@ -6,7 +6,7 @@
 
 ## 支持的版本
 
-LocationSpoofer 处于持续维护状态。安全更新与缺陷修复将优先应用于最新发布版本以及 `main` 主分支。
+R7VqzN 处于持续维护状态。安全更新与缺陷修复将优先应用于最新发布版本以及 `main` 主分支。
 
 | 版本 | 是否支持安全维护 |
 | ---- | ---------------- |
@@ -18,12 +18,12 @@ LocationSpoofer 处于持续维护状态。安全更新与缺陷修复将优先�
 
 ## 报告安全漏洞
 
-我们非常重视 LocationSpoofer 的安全性与稳定性。如果你发现了安全漏洞或关键风控泄漏隐患，欢迎通过负责任的漏洞披露流程向我们反馈。
+我们非常重视 R7VqzN 的安全性与稳定性。如果你发现了安全漏洞或关键风控泄漏隐患，欢迎通过负责任的漏洞披露流程向我们反馈。
 
 ### 如何报告
 
 1. **GitHub 私密漏洞报告 (推荐)**：
-   请通过 GitHub 提供的 [Private Vulnerability Reporting](https://github.com/your-username/LocationSpoofer/security/advisories/new) 功能发起私密安全通报。
+   请通过 GitHub 提供的 [Private Vulnerability Reporting](https://github.com/your-username/R7VqzN/security/advisories/new) 功能发起私密安全通报。
 
 2. **备用反馈渠道**：
    如果无法使用 GitHub 私密安全通报，你可以通过官方社区或 Telegram 群组直接私信项目管理员，并附上详细的复现材料。
@@ -45,4 +45,4 @@ LocationSpoofer 处于持续维护状态。安全更新与缺陷修复将优先�
 
 ---
 
-感谢你为保护 LocationSpoofer 及其用户安全所做出的贡献！
+感谢你为保护 R7VqzN 及其用户安全所做出的贡献！

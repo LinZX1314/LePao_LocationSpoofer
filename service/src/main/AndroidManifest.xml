@@ -16,8 +16,8 @@
             android:name=".SpoofingControlReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.vincenthzr.locationspoofer.START" />
-                <action android:name="com.vincenthzr.locationspoofer.STOP" />
+                <action android:name="com.kdzw8p.mqa.v71f.START" />
+                <action android:name="com.kdzw8p.mqa.v71f.STOP" />
             </intent-filter>
         </receiver>
         <receiver

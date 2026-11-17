@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>LocationSpoofer</h1>
+<h1>R7VqzN</h1>
 
 <p>Android system-level location spoofing and wireless environment simulation framework based on KernelSU + LSPosed</p>
 
@@ -20,7 +20,7 @@
 
 > **📢 Join our [Telegram Group](https://t.me/+CsxZGItXdW40ZWVl) for** ~~technical discussion, updates,~~ **bragging and shitposting.**
 >
-> **📖 Read the [LocationSpoofer Detailed Tutorial](https://docs.google.com/document/d/1fFEz3k7ATdN2dwY1L3RJn1QuzgokIsslNa88-vUPxPk/edit?usp=sharing)**
+> **📖 Read the [R7VqzN Detailed Tutorial](https://docs.google.com/document/d/1fFEz3k7ATdN2dwY1L3RJn1QuzgokIsslNa88-vUPxPk/edit?usp=sharing)**
 
 ---
 
@@ -35,8 +35,8 @@ In modern Android risk control and anti-cheating environments, standard develope
 *   **Accelerometer and step-counter hardware sensor linkage**
 *   Time-series coordinate analysis (FFT and variance checks) to detect artificial static coordinates or deterministic linear trajectories.
 
-**LocationSpoofer** is a **system-level virtual positioning and wireless environment simulation framework** engineered specifically to counter deep anti-cheating detections.
-Powered by **KernelSU / APatch / Magisk** for root privileges and **LSPosed (libxposed API 101+)** to hook target processes in the Zygote stage, LocationSpoofer intercepts and fakes all positioning, wireless networking, and motion sensor API responses with physical fidelity. This guarantees that target apps obtain self-consistent, realistic location and radio fingerprints without detecting virtualization.
+**R7VqzN** is a **system-level virtual positioning and wireless environment simulation framework** engineered specifically to counter deep anti-cheating detections.
+Powered by **KernelSU / APatch / Magisk** for root privileges and **LSPosed (libxposed API 101+)** to hook target processes in the Zygote stage, R7VqzN intercepts and fakes all positioning, wireless networking, and motion sensor API responses with physical fidelity. This guarantees that target apps obtain self-consistent, realistic location and radio fingerprints without detecting virtualization.
 
 ---
 
@@ -44,7 +44,7 @@ Powered by **KernelSU / APatch / Magisk** for root privileges and **LSPosed (lib
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                             LocationSpoofer                             │
+│                             R7VqzN                             │
 │        System-Level Location & Wireless Environment Simulation          │
 └─────────────────────────────────────────────────────────────────────────┘
         │                            │                            │
@@ -145,7 +145,7 @@ Both variants deliver JSON through libxposed remote configuration; hooks read an
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│       LocationSpoofer Host Process (app/app-ui/service/core-data)       │
+│       R7VqzN Host Process (app/app-ui/service/core-data)       │
 │  ┌─────────────────────────┐  ┌──────────────────────────────────────┐  │
 │  │     Triple Map Engine   │  │          RouteStateMachine           │  │
 │  │ (AMap / Baidu / Google) │  │     (IDLE / READY / RUN / PAUSE)     │  │
@@ -191,7 +191,7 @@ Both variants deliver JSON through libxposed remote configuration; hooks read an
 The global scheme hooks system services directly, and their internals differ between vendors and system versions, so each system needs to be adapted:
 
 * [ADAPTATION_PROGRESS.md](ADAPTATION_PROGRESS.md): real-device verification status for each system and device under both schemes (the in-app "System Adaptation → Full adaptation progress" page shows this file);
-* [vendor/README.md](xposed/src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/README.md): the adaptation framework and the **complete checklist for adding a new system**;
+* [vendor/README.md](xposed/src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/README.md): the adaptation framework and the **complete checklist for adding a new system**;
 * [xposed/ADAPTATION_GUIDE.md](xposed/ADAPTATION_GUIDE.md): how to locate internal system classes and methods on a real device, and how to troubleshoot with the in-app "Hook Status" page.
 
 ---
@@ -210,22 +210,22 @@ The global scheme hooks system services directly, and their internals differ bet
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/LocationSpoofer.git
+git clone https://github.com/your-username/R7VqzN.git
 
 # 2. Build and install Debug APK
 ./gradlew installDebug
 ```
 
 ### 2. Activation
-1. Open **KernelSU / APatch / Magisk** and grant Root permissions to LocationSpoofer.
-2. Open **LSPosed Manager**, find **LocationSpoofer**, and **enable it**.
+1. Open **KernelSU / APatch / Magisk** and grant Root permissions to R7VqzN.
+2. Open **LSPosed Manager**, find **R7VqzN**, and **enable it**.
 3. Under the module's scope, **check the target apps** you wish to spoof (e.g. WeChat, DingTalk, XuexiTong, Baidu Maps).
 4. **Force stop** target apps or reboot your phone to apply the hooks.
 
 ### 3. Usage Scenarios
 
 #### Fixed-Point Simulation & Environment Locking
-1. Launch LocationSpoofer, pick a target location on the map.
+1. Launch R7VqzN, pick a target location on the map.
 2. In the bottom drawer, enable spoofing toggles: **Mock Wi-Fi**, **Mock Cell Tower**, **Mock Bluetooth**, **Mock Steps**, and **Enable Jitter**.
 3. Tap "Start Simulation" to take over system GPS feeds.
 4. To lock to a specific physical radio snapshot, tap the snapshot in "Manage Data".

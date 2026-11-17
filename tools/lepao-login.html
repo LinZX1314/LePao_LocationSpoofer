@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>乐跑账号配置器</title>
+<style>
+:root{--bg:#0f1115;--card:#181c24;--line:#2a3140;--tx:#d7dce4;--sub:#8b94a3;--ac:#3b82f6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.6 system-ui,"Microsoft YaHei"}
+.wrap{max-width:860px;margin:0 auto;padding:20px}
+h1{font-size:20px;margin:8px 0 4px}
+.sub{color:var(--sub);font-size:13px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>div{flex:1;min-width:220px}
+label{display:block;font-size:12px;color:var(--sub);margin:8px 0 4px}
+input,textarea{width:100%;background:#0c0f14;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:8px 10px;font-size:13px}
+input:focus{outline:none;border-color:var(--ac)}
+button{background:var(--ac);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;margin-top:14px}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--tx)}
+pre{background:#0c0f14;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;white-space:pre-wrap;word-break:break-all}
+.hint{font-size:12px;color:var(--sub);margin-top:8px}
+.tag{display:inline-block;background:#1f2736;color:#9db4d0;border-radius:6px;padding:2px 8px;font-size:11px;margin-right:6px}
+h2{font-size:15px;margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>步道乐跑 · 账号配置器（单账号注入）</h1>
+  <div class="sub">把「账号 uid + access_token」直接写进乐跑 MMKV（<span class="tag">com.lptiyu.tanke/mmkv</span>），等价于已登录态。生成结果：① 一键 adb 落库脚本 ② Xposed 模块可读取的 JSON 配置。</div>
+
+  <div class="card">
+    <h2>① 账号信息</h2>
+    <div class="row">
+      <div><label>user_id（账号数字 id，必填）</label><input id="uid" placeholder="例如 102345678"></div>
+      <div><label>access_token（必填）</label><input id="token" placeholder="乐跑 App 内登录后可抓包/读 MMKV 得到"></div>
+    </div>
+    <div class="row">
+      <div><label>refresh_token（可留空，仅延长换 token 能力）</label><input id="refresh" placeholder="可选"></div>
+      <div><label>refresh_expire（毫秒时间戳，可留空）</label><input id="expire" placeholder="可选"></div>
+    </div>
+    <div class="row">
+      <div><label>phone（user_phone）</label><input id="phone" placeholder="可选"></div>
+      <div><label>user_nickname（昵称）</label><input id="nick" placeholder="可选"></div>
+    </div>
+    <div class="row">
+      <div><label>role（0=学生 1/2=教师/管理员，默认 0）</label><input id="role" value="0"></div>
+      <div><label>admin（默认 0）</label><input id="admin" value="0"></div>
+    </div>
+    <button id="gen">生成配置</button>
+    <button class="ghost" id="copyJson" style="display:none">复制 JSON</button>
+    <button class="ghost" id="copySh" style="display:none">复制落库脚本</button>
+  </div>
+
+  <div class="card">
+    <h2>② 多账户切换器（web 侧）</h2>
+    <div class="hint" style="margin-top:0">每个账号一行；「完整内容备份」导入/导出与 App 端 lepao_accounts 存档互通（JSON 即 {session, snapshot{sp,mmkv}, lat, lng, groups}）。
+    选为「当前」后点「生成切户包」，输出给 App 乐跑配置页/模块的一键注入 JSON（切户 + 定位参数 + 一键跑）。账户列表存 localStorage，纯本地不上传。</div>
+    <div id="acctTable" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px">
+      <div><label>新账户名</label><input id="aName" placeholder="例如 李同学"></div>
+      <div><label>user_id</label><input id="aUid" placeholder="102345678"></div>
+      <div><label>access_token</label><input id="aTok" placeholder="粘贴 token"></div>
+    </div>
+    <div class="row" style="margin-top:0">
+      <div><label>跑步目标 km（可选，写入 groups 快照）</label><input id="aKm" placeholder="3.0"></div>
+      <div><label>备注</label><input id="aNote" placeholder="例如 体育老师账号"></div>
+    </div>
+    <button id="addAcct">＋ 添加账户</button>
+    <button class="ghost" id="importAcct">导入完整备份 JSON</button>
+    <input type="file" id="fileAcct" accept=".json,application/json" style="display:none">
+    <div style="margin-top:14px">
+      <label style="font-size:12px;color:var(--sub)">当前切户对象</label>
+      <select id="activeSel" style="width:260px;background:#0c0f14;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:8px"></select>
+      <button id="genSwitch" style="margin-left:10px">生成切户 + 一键跑包</button>
+      <button class="ghost" id="exportAcct">导出当前账户完整备份</button>
+    </div>
+    <pre id="switchOut" style="display:none;margin-top:10px"></pre>
+  </div>
+
+  <div class="card">
+    <h2>③ 协议跑器配置（tools/lepao-runner.py，免模拟器）</h2>
+    <div class="hint" style="margin-top:0">乐跑的「一个 id 就能跑」= 手机号 + 短信验证码 / 学校 app_token 走 Login/quickLoginV339 直接换 token（源码 bd/e.java:34 证实，全程不碰微信）。
+    下面生成给 lepao-runner.py 的 config.json：登录 → beforeRun → 逐点 setRunLocationRecord → stopRun，纯 HTTP 上传。</div>
+    <div class="row">
+      <div><label>手机号</label><input id="pPhone"></div>
+      <div><label>school_id</label><input id="pSchool" placeholder="可选"></div>
+      <div><label>app_token（学校门户免验证码，可空）</label><input id="pAppTok" placeholder="可空"></div>
+    </div>
+    <div class="row">
+      <div><label>距离 km</label><input id="pKm" placeholder="3.0"></div>
+      <div><label>配速 km/h</label><input id="pKmh" placeholder="6.0"></div>
+      <div><label>起点 lat / lng（逗号分隔）</label><input id="pStart" placeholder="30.572,104.066"></div>
+    </div>
+    <div class="row">
+      <div style="min-width:320px"><label>路线点（每行或逗号分隔 [lat,lng]）</label><textarea id="pPts" rows="2" style="width:100%;background:#0c0f14;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:8px 10px;font-size:13px"></textarea></div>
+    </div>
+    <button id="genRunner">生成 config.json + 运行命令</button>
+    <pre id="runnerOut" style="display:none"></pre>
+  </div>
+
+  <div class="card" id="out" style="display:none">
+    <h2>② 生成的 JSON（写给 Xposed 模块或分发系统）</h2>
+    <pre id="jsonOut"></pre>
+    <h2 style="margin-top:14px">③ adb 落库脚本（设备需 root 或 USB 调试已开，MMKV 是二进制整文件替换，不能文本追加）</h2>
+    <pre id="shOut"></pre>
+    <div class="hint">
+      用法：把 JSON 里 <b>mmkv_file</b> 指向的 <code>default.mmkv</code> 准备成该账号的登录态文件（同型号设备已登录同账号 <code>adb pull /data/data/com.lptiyu.tanke/mmkv/default.mmkv</code> 得到），
+      然后执行脚本：脚本会备份原文件 → 覆盖写入 → 重启乐跑。乐跑启动时 <code>rc.a.V0()</code> 读到的就是这份登录态，无需再走微信。
+    </div>
+  </div>
+</div>
+
+<script>
+const K = { // MMKV key（来自 rc/f.java 常量表）
+  userId:"user_id", token:"token", refresh:"refresh_token",
+  expire:"refresh_expire", phone:"user_phone", nick:"user_nickname",
+  role:"role", admin:"admin"
+};
+function $(id){return document.getElementById(id).value}
+document.getElementById("gen").onclick=()=>{
+  const uid=$("uid").trim(), token=$("token").trim();
+  if(!uid||!token){alert("user_id 与 access_token 必填");return}
+  const json={
+    target_pkg:"com.lptiyu.tanke",
+    mmkv_file:"default.mmkv",
+    storage:"/data/data/com.lptiyu.tanke/mmkv/",
+    keys:{},
+    generated_at:new Date().toISOString()
+  };
+  const put=(k,v)=>{if(v!=="")json.keys[k]=v};
+  put(K.userId,uid); put(K.token,token);
+  put(K.refresh,$("refresh").trim()); put(K.expire,$("expire").trim());
+  put(K.phone,$("phone").trim()); put(K.nick,$("nick").trim());
+  json.keys[K.role]=$("role").trim()||"0";
+  json.keys[K.admin]=$("admin").trim()||"0";
+  const js=JSON.stringify(json,null,2);
+  document.getElementById("jsonOut").textContent=js;
+
+  // MMKV 二进制 KV 文件（key 前缀 = utf8(key) 的字节，长度=byteLen*2）
+  // 这里只给出「在设备上用 Python 写 MMKV」的脚本，避免网页内直接二进制编码
+  const pyLines=Object.entries(json.keys).map(([k,v])=>`set("${k}", ${JSON.stringify(v)})`).join("\n");
+  const sh=`#!/bin/sh
+PKG=com.lptiyu.tanke
+MMKV=/data/data/$PKG/mmkv/default.mmkv
+# 1) 拉出设备现有 mmkv 文件（首次无则跳过）
+adb shell run-as $PKG cat $MMKV 2>/dev/null > default.mmkv
+# 2) 用 Python 把本次 key-value 追加/覆盖写进 MMKV（需要 pip install 无，纯手工 struct）
+python - <<'EOF'
+import struct,os,sys
+p=r"$(MMKV_WIN || echo default.mmkv)"
+def set(k,v):
+    kb=k.encode(); vb=str(v).encode()
+    off=os.path.getsize(p) if os.path.exists(p) else 8
+    with open(p,"r+b") if os.path.exists(p) else open(p,"w+b") as f:
+        # MMKV: 8B header + [4B keyLen][key bytes][value bytes]，keyLen 含结尾 0
+        f.seek(0,2)
+        f.write(struct.pack("<I",len(kb)+1)+kb+b"\\x00"+vb)
+EOF
+# 3) 推回并重启
+adb push default.mmkv /data/local/tmp/default.mmkv
+adb shell "su -c 'cp /data/local/tmp/default.mmkv $MMKV && chmod 660 $MMKV && am force-stop $PKG && am start -n $PKG/.activities.login.LoginActivity'"
+echo done
+`;
+  document.getElementById("shOut").textContent=sh;
+  document.getElementById("out").style.display="block";
+  document.getElementById("copyJson").style.display="";
+  document.getElementById("copySh").style.display="";
+  document.getElementById("copyJson").onclick=()=>navigator.clipboard.writeText(js);
+  document.getElementById("copySh").onclick=()=>navigator.clipboard.writeText(sh);
+};
+
+// ============ ② 多账户切换器（localStorage 存账户列表，JSON 与 App 端 lepao_accounts 互通） ============
+const LS_KEY="lepao_accounts";
+function loadAccounts(){try{return JSON.parse(localStorage.getItem(LS_KEY)||"{}")}catch(e){return{}}}
+function saveAccounts(o){localStorage.setItem(LS_KEY,JSON.stringify(o))}
+function renderAccounts(){
+  const accs=loadAccounts(), tab=document.getElementById("acctTable"), sel=document.getElementById("activeSel");
+  tab.innerHTML=""; sel.innerHTML="";
+  const names=Object.keys(accs).sort();
+  if(!names.length){tab.innerHTML="<div class='hint'>暂无账户，先在上方添加</div>"}
+  names.forEach(n=>{
+    const a=accs[n];
+    const row=document.createElement("div");
+    row.style.cssText="display:flex;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--line)";
+    row.innerHTML=`<span style="flex:1"><b>${n}</b> <span class='tag'>uid ${a.uid||"?"}</span> ${a.note?"<span class='tag'>"+a.note+"</span>":""} ${a.km?"<span class='tag'>目标"+a.km+"km</span>":""}</span>`;
+    const mk=(txt,fn,color)=>{const b=document.createElement("button");b.textContent=txt;b.className="ghost";b.style.cssText="margin:0;padding:4px 10px;font-size:12px;color:"+(color||"var(--tx)");b.onclick=fn;row.appendChild(b)};
+    mk("导出",()=>{const d=new Blob([JSON.stringify(a,null,2)],{type:"application/json"});const l=document.createElement("a");l.href=URL.createObjectURL(d);l.download="lepao_acct_"+n+".json";l.click()});
+    mk("删除",()=>{delete accs[n];saveAccounts(accs);renderAccounts()},"#cf222e");
+    tab.appendChild(row);
+    const op=document.createElement("option");op.value=n;op.textContent=n;sel.appendChild(op);
+  });
+  const act=localStorage.getItem("lepao_active")||names[0];
+  if(act)sel.value=act;
+}
+document.getElementById("addAcct").onclick=()=>{
+  const name=document.getElementById("aName").value.trim();
+  const uid=document.getElementById("aUid").value.trim();
+  const tok=document.getElementById("aTok").value.trim();
+  if(!name){alert("账户名必填");return}
+  if(!uid||!tok){alert("user_id 与 token 必填")}
+  const accs=loadAccounts();
+  accs[name]={name,uid,token:tok,km:document.getElementById("aKm").value.trim(),
+    note:document.getElementById("aNote").value.trim(),
+    session:{user_id:uid,token:tok},
+    snapshot:null, groups:null, updated_at:new Date().toISOString()};
+  saveAccounts(accs); localStorage.setItem("lepao_active",name); renderAccounts();
+};
+document.getElementById("importAcct").onclick=()=>document.getElementById("fileAcct").click();
+document.getElementById("fileAcct").onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  let j;try{j=JSON.parse(await f.text())}catch(_){alert("JSON 解析失败");return}
+  const accs=loadAccounts();
+  // 兼容 App 端存档格式（带 snapshot/session）与本页简单格式
+  const n=j.name||f.name.replace(/\.(json|txt)$/,"");
+  const base={name:n, updated_at:new Date().toISOString()};
+  if(j.session||j.snapshot){
+    Object.assign(base,j,{name:n});
+  }else{
+    base.uid=j.user_id||j.uid||""; base.token=j.access_token||j.token||"";
+    base.session={user_id:base.uid,token:base.token}; base.snapshot=j.snapshot||null;
+  }
+  accs[n]=base; saveAccounts(accs); renderAccounts(); alert("已导入账户："+n);
+};
+document.getElementById("genSwitch").onclick=()=>{
+  const name=document.getElementById("activeSel").value;
+  const a=loadAccounts()[name]; if(!a)return;
+  localStorage.setItem("lepao_active",name);
+  const out={
+    target_pkg:"com.lptiyu.tanke", account:name,
+    session:a.session||{},            // 登录态 key（App 乐跑配置页「写入库」可直接粘）
+    snapshot:a.snapshot||null,        // 完整内容备份（跑步目标/次数/历史，App 端 account_switcher 写回）
+    groups:a.groups||null,            // 检测层组开关快照
+    run:{km:a.km||"", one_click:a.km?"true":"false"},
+    generated_at:new Date().toISOString()
+  };
+  const el=document.getElementById("switchOut");
+  el.textContent=JSON.stringify(out,null,2); el.style.display="block";
+};
+document.getElementById("exportAcct").onclick=()=>{
+  const name=document.getElementById("activeSel").value;
+  const a=loadAccounts()[name]; if(!a)return;
+  const blob=new Blob([JSON.stringify(a,null,2)],{type:"application/json"});
+  const l=document.createElement("a"); l.href=URL.createObjectURL(blob);
+  l.download="lepao_acct_"+name+".json"; l.click();
+};
+renderAccounts();
+
+// ============ ③ 协议跑器 config.json 生成（tools/lepao-runner.py） ============
+document.getElementById("genRunner").onclick=()=>{
+  const start=(document.getElementById("pStart").value.trim()||"0,0").split(",").map(s=>parseFloat(s.trim()));
+  const ptsRaw=document.getElementById("pPts").value;
+  const pts=[];
+  ptsRaw.split(/[;\n]+/).map(s=>s.trim()).filter(Boolean).forEach(line=>{
+    const pair=line.split(/[,\s]+/).filter(Boolean).map(parseFloat);
+    if(pair.length>=2&&!isNaN(pair[0])&&!isNaN(pair[1]))pts.push([pair[0],pair[1]]);
+  });
+  if(start[0])pts.unshift(start);
+  const cfg={
+    phone:document.getElementById("pPhone").value.trim(),
+    school_id:document.getElementById("pSchool").value.trim(),
+    app_token:document.getElementById("pAppTok").value.trim(),
+    code:"",
+    device:{version:"4.7.0",version_name:"4.7.0",mobile_model:"SM-G9810",
+      mobile_device_id:"oaid-"+Math.random().toString(16).slice(2,18),
+      mobile_os_version:"13",ostype:"1"},
+    run:{distance_km:parseFloat(document.getElementById("pKm").value)||3.0,
+      speed_kmh:parseFloat(document.getElementById("pKmh").value)||6.0,
+      capture_interval_s:60, points:pts, face_img:""}
+  };
+  const out=document.getElementById("runnerOut");
+  out.textContent="// config.json（存为 config.json）\n"+JSON.stringify(cfg,null,2)
+    +"\n\n// 运行（先登录缓存 token，再完整跑一次）：\n"
+    +"python tools/lepao-runner.py login config.json\n"
+    +"python tools/lepao-runner.py run config.json";
+  out.style.display="block";
+};
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vincenthzr.locationspoofer"
+    namespace = "com.kdzw8p.mqa.v71f"
     compileSdk = 37
 
     fun getLocalConfig(key: String): String? {
@@ -29,8 +29,8 @@ android {
         System.getenv("GOOGLE_MAPS_API_KEY") ?: getLocalConfig("GOOGLE_MAPS_API_KEY") ?: ""
 
     defaultConfig {
-        applicationId = "com.vincenthzr.locationspoofer"
-        testInstrumentationRunner = "com.vincenthzr.locationspoofer.SystemFilesInstrumentation"
+        applicationId = "com.kdzw8p.mqa.v71f"
+        testInstrumentationRunner = "com.kdzw8p.mqa.v71f.SystemFilesInstrumentation"
         minSdk = 26
         targetSdk = 37
         versionCode = providers.gradleProperty("APP_VERSION_CODE").get().toInt()

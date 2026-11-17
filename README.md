@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>LocationSpoofer</h1>
+<h1>R7VqzN</h1>
 
 <p>基于 KernelSU + LSPosed 的 Android 系统级虚拟定位与无线环境伪装框架</p>
 <p>Android system-level location spoofing and wireless environment simulation framework based on KernelSU + LSPosed</p>
@@ -21,7 +21,7 @@
 
 > **📢 加入我们的 [Telegram 交流群](https://t.me/+CsxZGItXdW40ZWVl) 进行**~~技术探讨、催更、~~**吹牛逼、搞抽象。**
 >
-> **📖 查看 [LocationSpoofer 详细使用教程](https://docs.google.com/document/d/1fFEz3k7ATdN2dwY1L3RJn1QuzgokIsslNa88-vUPxPk/edit?usp=sharing)**
+> **📖 查看 [R7VqzN 详细使用教程](https://docs.google.com/document/d/1fFEz3k7ATdN2dwY1L3RJn1QuzgokIsslNa88-vUPxPk/edit?usp=sharing)**
 
 ---
 
@@ -36,7 +36,7 @@
 *   **加速度计与计步器传感器联动状态**
 *   对连续定位坐标序列进行傅里叶变换（FFT）或离散度分析，识别非自然的静态固定点或机械式等速直线轨迹。
 
-**LocationSpoofer** 是专为应对深度风控检测而设计的**系统级虚拟定位与无线环境模拟方案**。
+**R7VqzN** 是专为应对深度风控检测而设计的**系统级虚拟定位与无线环境模拟方案**。
 项目基于 **KernelSU / APatch / Magisk** 获取底层 Root 权限，并利用 **LSPosed (libxposed API 101+)** 框架在 Zygote 阶段注入目标应用进程，以高物理契合度拦截并伪造所有与位置、卫星、基站、Wi-Fi、蓝牙、传感器相关的底层 API 响应，确保应用获取自洽且真实的虚假环境指纹。
 
 ---
@@ -45,7 +45,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                             LocationSpoofer                             │
+│                             R7VqzN                             │
 │                    系统级虚拟定位与无线环境模拟                         │
 └─────────────────────────────────────────────────────────────────────────┘
         │                            │                            │
@@ -150,7 +150,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│     LocationSpoofer 宿主进程（app / app-ui / service / core-data）      │
+│     R7VqzN 宿主进程（app / app-ui / service / core-data）      │
 │  ┌─────────────────────────┐  ┌──────────────────────────────────────┐  │
 │  │     Triple Map Engine   │  │          RouteStateMachine           │  │
 │  │ (AMap / Baidu / Google) │  │     (IDLE / READY / RUN / PAUSE)     │  │
@@ -196,7 +196,7 @@
 全局方案直接 Hook 系统服务，不同厂商 / 系统版本的内部实现不一样，需要逐个适配：
 
 * [ADAPTATION_PROGRESS.md](ADAPTATION_PROGRESS.md)：各系统、机型在两个方案下的实机验证进度（App 内"系统适配 → 完整适配进度"显示的就是这份文件）；
-* [vendor/README.md](xposed/src/main/java/com/vincenthzr/locationspoofer/xposed/hooks/vendor/README.md)：适配框架说明与**新增一个系统的完整检查清单**；
+* [vendor/README.md](xposed/src/main/java/com/kdzw8p/mqa/v71f/xposed/hooks/vendor/README.md)：适配框架说明与**新增一个系统的完整检查清单**；
 * [xposed/ADAPTATION_GUIDE.md](xposed/ADAPTATION_GUIDE.md)：如何在真机上定位系统内部类与方法、如何根据 App 内"Hook 运行状态"页排查适配问题。
 
 ---
@@ -215,22 +215,22 @@
 
 ```bash
 # 1. 克隆代码仓库
-git clone https://github.com/your-username/LocationSpoofer.git
+git clone https://github.com/your-username/R7VqzN.git
 
 # 2. 编译 Debug APK 并直接安装到设备
 ./gradlew installDebug
 ```
 
 ### 2. 权限与激活
-1. 打开 **KernelSU / APatch / Magisk** 管理器，授予 LocationSpoofer **Root 权限**。
-2. 打开 **LSPosed** 管理器，在模块列表中找到 **LocationSpoofer** 并启用。
+1. 打开 **KernelSU / APatch / Magisk** 管理器，授予 R7VqzN **Root 权限**。
+2. 打开 **LSPosed** 管理器，在模块列表中找到 **R7VqzN** 并启用。
 3. 在模块的作用域（Scope）中，**勾选需要进行定位伪装的目标应用**（如微信、企业微信、钉钉、超星学习通、百度地图、高德地图等）。
 4. **强行停止**勾选的目标 App（或重启手机）以使其加载 Hook 逻辑。
 
 ### 3. 常见场景
 
 #### 定点模拟与环境锁定
-1. 启动 LocationSpoofer，在主页地图上拖动准星或搜索栏搜索目标位置。
+1. 启动 R7VqzN，在主页地图上拖动准星或搜索栏搜索目标位置。
 2. 在底部抽屉开启所需伪装开关：**伪造 Wi-Fi**、**模拟基站**、**模拟蓝牙**、**模拟传感器计步**、**开启随机抖动**。
 3. 点击“启动模拟”接管系统 GPS。
 4. 如需锁定使用具体的本地采集点，可在“管理数据”中点击对应采集点进行锁定绑定。
@@ -248,7 +248,7 @@ git clone https://github.com/your-username/LocationSpoofer.git
 
 #### 独立应用坐标系配置
 * 若遇到特定 App 存在固定坐标偏移：
-  * 进入 LocationSpoofer “设置” -> **“配置应用坐标系”**；
+  * 进入 R7VqzN “设置” -> **“配置应用坐标系”**；
   * 添加目标应用包名；
   * 将坐标系指定为 `WGS-84`、`GCJ-02` 或 `BD-09`，Hook 层将自动根据目标 App 进行转换。
 
