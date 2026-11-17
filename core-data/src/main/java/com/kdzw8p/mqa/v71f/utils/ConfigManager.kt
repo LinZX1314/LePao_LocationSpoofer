@@ -188,6 +188,11 @@ class ConfigManager(private val context: Context, private val rootManager: RootM
         json.put("lepao_report_version_name", settingsManager.lepaoReportVersionName)
         // 自动结束里程（公里）：空/0=关闭；Xposed 端到点对乐跑跑步页的结束按钮合成一次长按
         json.put("lepao_auto_stop_km", settingsManager.lepaoAutoStopKm)
+        // 目标距离（米）：模拟层据此做末段减速与到点停速（位置仍按同一坐标上报，不会反弹）
+        val autoStopKm = settingsManager.lepaoAutoStopKm.toDoubleOrNull() ?: 0.0
+        json.put("target_distance_m", if (autoStopKm > 0.0) autoStopKm * 1000.0 else 0.0)
+        json.put("speed_ramp_sec", MotionRealism.DEFAULT_SPEED_RAMP_SEC)
+        json.put("target_decel_m", MotionRealism.DEFAULT_DECEL_DISTANCE_M)
         // 运动真实度：Xposed 端据此给速度、步频、海拔、加速度加起伏；随机强度与速度浮动在会话内取开始时的快照
         json.put("realism_level", SpoofingState.realismLevel.takeIf { it >= 0 } ?: settingsManager.realismLevel)
         // 路径抖动幅度与整条路线横向平移：Xposed 端按这两个值改轨迹形态

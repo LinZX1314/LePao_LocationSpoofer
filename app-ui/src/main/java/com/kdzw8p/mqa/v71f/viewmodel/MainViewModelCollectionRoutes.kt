@@ -874,6 +874,9 @@ fun MainViewModel.refreshLepaoProfileStats(name: String, onDone: (String) -> Uni
             onDone(error)
             return@launch
         }
+        // 今日已跑是列表里最先要看的字段：先并发发起，跟规则/统计同时跑。
+        // 结果不在这里落库，等统计写完再合并，避免两个 read-modify-write 互相覆盖。
+        val todayJob = async { fetchLepaoTodayRun(name) }
         // 规则与主页统计互不依赖，先并发发起；等规则完成提交后再写回统计，避免整档案互相覆盖。
         val rulesJob = refreshLepaoRules(name)
         suspend fun fetchStats() = withContext(Dispatchers.IO) {
@@ -970,8 +973,8 @@ fun MainViewModel.refreshLepaoProfileStats(name: String, onDone: (String) -> Uni
         }
         settingsRepository.saveLepaoProfile(name, current)
         _uiState.update { it.copy(lepaoProfilesVersion = it.lepaoProfilesVersion + 1) }
-        // 今日记录是补充字段，分页数量不应拖住账号主资料刷新；仍复用会话校验后独立落库。
-        viewModelScope.launch { refreshLepaoTodayRun(name) }
+        // 统计先落库，再合并已经并行取回的今日记录：今日字段不会被统计写覆盖。
+        todayJob.await()?.let { applyLepaoTodayRun(name, it) }
         } finally {
             profileStatsInFlight.remove(name)
         }

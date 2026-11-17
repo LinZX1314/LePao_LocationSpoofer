@@ -40,6 +40,8 @@ internal object LepaoAutoStop {
     private var automationBusy = false
     private var lastStatusLogAt = 0L
     private var lastLogWaitAt = 0L
+    private var startPressAt = 0L
+    private var stopRetries = 0
     private var automationStartAt = 0L
     private var lastChronoText = ""
     private var lastChronoChangeAt = 0L
@@ -87,7 +89,9 @@ internal object LepaoAutoStop {
         // 自动结束会一直不触发；统一走全窗口根视图。
         val distance = (findByAllRoots(DISTANCE_ID) as? TextView)
             ?.text?.toString()?.trim()?.toDoubleOrNull() ?: return
-        if (distance < targetKm || activity.hashCode() == triggeredFor) return
+        // 模拟层在目标距离处已经把速度归零（位置停住但继续上报），乐跑自己累加的里程可能比目标
+        // 差十几米；留 15 米容差，否则读数永远够不到阈值、一直不停。
+        if (distance < targetKm - 0.015 || activity.hashCode() == triggeredFor) return
 
         // 到点不等于该结束：定向打卡跑区还要求打满打卡点。tv_log_count 是已打卡数，
         // tv_tip 会显示「待分配(再跑 N 米后分配打卡点)」。没走完就继续跑，
@@ -96,7 +100,10 @@ internal object LepaoAutoStop {
             ?.text?.toString()?.trim()?.toIntOrNull() ?: -1
         val pendingLog = (findByAllRoots("tv_tip") as? TextView)
             ?.text?.toString()?.contains("待分配") == true
-        if ((logCount <= 0 || pendingLog) && distance < targetKm * 1.5) {
+        // logCount = -1 是读不到计数控件（不同版本 id 不同，实测 4.2.3 就读不到），
+        // 不能当成「打卡不足」，否则里程到了也会一直被拦；那种情况只信 tv_tip 的「待分配」。
+        val logIncomplete = pendingLog || logCount == 0
+        if (logIncomplete && distance < targetKm * 1.5) {
             val nowMs = SystemClock.uptimeMillis()
             if (nowMs - lastLogWaitAt > 15_000L) {
                 lastLogWaitAt = nowMs
@@ -115,7 +122,17 @@ internal object LepaoAutoStop {
             XposedBridge.log("[R7VqzN] auto-stop: distance=$distance km >= $targetKm, long-press stop")
             longPress(handler, stop) {
                 handler.postDelayed({
-                    clickConfirm()
+                    // 没弹确认框且还能看到「结束」按钮，说明长按没生效（跑步仍停着），
+                    // 交回 tick 重按一次；重试超过 2 次就认为已直接结束。
+                    val confirmed = clickConfirm()
+                    if (!confirmed && stopRetries < 2 && findByAllRoots(STOP_ID) != null) {
+                        stopRetries++
+                        XposedBridge.log("[R7VqzN] auto-stop: stop not applied, retry ${stopRetries}")
+                        stopping = false
+                        triggeredFor = 0
+                        return@postDelayed
+                    }
+                    stopRetries = 0
                     stopping = false
                     finishAutomation()
                 }, 2500)
@@ -252,6 +269,8 @@ internal object LepaoAutoStop {
         }
         automationBusy = true
         automationStartAt = SystemClock.uptimeMillis()
+        startPressAt = 0L
+        stopRetries = 0
         autoKm = km
         val handler = Handler(Looper.getMainLooper())
         XposedBridge.log("[R7VqzN] auto-run: start km=$km")
@@ -297,7 +316,12 @@ internal object LepaoAutoStop {
             // 底部开始/暂停/继续是 TextProgressBar（id tv_start_pause_continue_run），文字画在画布上，
             // 没有 TextView 文本可读，也不能 performClick；开跑要合成一次长按。
             val chrono = (findByAllRoots("chronometer") as? TextView)?.text?.toString()?.trim().orEmpty()
-            val running = chrono.isNotBlank() && chrono != "00:00:00"
+            // 乐跑开跑前有 3-2-1 倒计时，倒计时期间 chronometer 一直是 00:00:00，
+            // 光看计时会把「已经开始倒计时」当成没开跑，于是再长按一次——那次落在已开跑之后，
+            // 直接把跑步暂停了。所以距离>0 也算在跑。
+            val distKm = (findByAllRoots(DISTANCE_ID) as? TextView)
+                ?.text?.toString()?.trim()?.toDoubleOrNull() ?: 0.0
+            val running = (chrono.isNotBlank() && chrono != "00:00:00") || distKm > 0.0
             if (running) {
                 XposedBridge.log("[R7VqzN] auto-run: run page running, waiting distance")
                 return
@@ -311,6 +335,13 @@ internal object LepaoAutoStop {
             }
             val startBtn = findByAllRoots("tv_start_pause_continue_run")
             if (startBtn != null && startBtn.isShown) {
+                // 长按后 6 秒内不重复（倒计时 3 秒 + 启动开销），否则第二次长按会变成「长按暂停」
+                val sincePress = SystemClock.uptimeMillis() - startPressAt
+                if (startPressAt > 0L && sincePress < 6_000L) {
+                    handler.postDelayed({ stepAutomation(handler, attempt + 1) }, 1500)
+                    return
+                }
+                startPressAt = SystemClock.uptimeMillis()
                 XposedBridge.log("[R7VqzN] auto-run: long-press start on run page")
                 longPress(handler, startBtn) {
                     handler.postDelayed({ stepAutomation(handler, attempt + 1) }, 2500)
@@ -384,7 +415,7 @@ internal object LepaoAutoStop {
             as? android.app.Application
     }.getOrNull()
 
-    private fun clickConfirm() {
+    private fun clickConfirm(): Boolean {
         // 不能再用 contains：跑步结束页里「# 原来大学是这样的」也会命中「是」。
         // 这里只接受完全相等，或以目标开头（「结束跑步」→「结束」）。
         val targets = listOf("结束", "确定", "完成", "确认", "是")
@@ -392,9 +423,10 @@ internal object LepaoAutoStop {
             val hit = findClickableByExactText(root, targets) ?: continue
             XposedBridge.log("[R7VqzN] auto-stop: click confirm '${hit.first}'")
             hit.second.performClick()
-            return
+            return true
         }
         XposedBridge.log("[R7VqzN] auto-stop: no confirm button, sport may end directly")
+        return false
     }
 
     /** 比 findClickableByText 严格：完全相等或目标开头，避免单词「是」误中长句。 */

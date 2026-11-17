@@ -511,6 +511,10 @@ class LocationHooker : XposedModule() {
             XposedBridge.log("[R7VqzN] lepao update blocker hooks=$updateHooks")
             // 到点自动结束：只读里程文本，到阈值后对乐跑自己的结束按钮合成一次长按
             LepaoAutoStop.install { readConfig() }
+            // 权限与告警守卫：checkSelfPermission 谎报 / requestPermissions 自动授予 /
+            // 必要权限、悬浮窗、GPS、作弊嫌疑这类告警弹窗在 show 前拦掉。
+            // 只能放在延迟挂载里：早期安装会打崩爱加密壳的 InitializationProvider。
+            installLepaoPermissionGuard(classLoader)
         }
     }
 

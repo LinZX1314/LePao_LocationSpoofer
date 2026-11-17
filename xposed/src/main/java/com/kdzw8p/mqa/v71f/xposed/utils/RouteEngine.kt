@@ -82,7 +82,10 @@ object RouteEngine {
         val realism = realismSession(config, startTime)
         // 暂停后继续时，路线从暂停处的累计距离接着走（start_timestamp 重置为继续的时刻）
         val offset = config.optDouble("route_distance_offset", 0.0).coerceAtLeast(0.0)
-        val traveled = offset + realism.distance(speed, elapsedSec)
+        val traveledRaw = offset + realism.distance(speed, elapsedSec)
+        // 再钳一道到目标距离：即使 realism 因参数退化没饱和，位置也不会越过目标点
+        val targetTotal = config.optDouble("target_distance_m", 0.0)
+        val traveled = if (targetTotal > 0.0) traveledRaw.coerceAtMost(targetTotal) else traveledRaw
 
         val pos = path.positionAt(traveled, config.optBoolean("stop_at_destination", false))
         val currentSpeed = if (pos.arrived) 0f else realism.speed(speed, elapsedSec).toFloat()
@@ -129,8 +132,12 @@ object RouteEngine {
     }
 
     /** 配置里缺少真实度字段（旧版 App 写的配置）时按"关闭 + 不浮动"处理，行为与旧版一致 */
-    fun realismSession(config: JSONObject, startTimestamp: Long = config.optLong("start_timestamp", 0L)): MotionRealism.Session =
-        MotionRealism.session(
+    fun realismSession(config: JSONObject, startTimestamp: Long = config.optLong("start_timestamp", 0L)): MotionRealism.Session {
+        val offset = config.optDouble("route_distance_offset", 0.0).coerceAtLeast(0.0)
+        val targetTotal = config.optDouble("target_distance_m", 0.0)
+        // 续跑时已跑的距离算在 offset 里，本段只需要跑剩下的部分
+        val remaining = if (targetTotal > 0.0) (targetTotal - offset).coerceAtLeast(0.0) else 0.0
+        return MotionRealism.session(
             startTimestamp,
             config.optInt("realism_level", MotionRealism.Level.OFF.id),
             config.optInt("speed_fluctuation_pct", 0),
@@ -141,6 +148,12 @@ object RouteEngine {
                 config.optInt("slowdown_gap_sec", 0),
                 config.optInt("slowdown_ramp_sec", 0)
             ),
-            config.optInt("cadence_dip_pct", MotionRealism.DEFAULT_CADENCE_DIP_PCT)
+            config.optInt("cadence_dip_pct", MotionRealism.DEFAULT_CADENCE_DIP_PCT),
+            // 续跑时已经在跑动中，不再重新做起步加速
+            rampSec = if (offset > 0.0) 0.0 else config.optDouble("speed_ramp_sec", MotionRealism.DEFAULT_SPEED_RAMP_SEC),
+            targetDistanceM = remaining,
+            decelDistanceM = config.optDouble("target_decel_m", MotionRealism.DEFAULT_DECEL_DISTANCE_M),
+            baseSpeedMps = config.optDouble("speed_m_s", 0.0)
         )
+    }
 }

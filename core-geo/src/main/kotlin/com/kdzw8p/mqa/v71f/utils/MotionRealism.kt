@@ -75,6 +75,11 @@ object MotionRealism {
     /** 速度变化中由步频承担的比例，其余由步幅承担（步幅 = 速度 / 步频） */
     private const val CADENCE_SHARE_OF_SPEED = 0.4
 
+    /** 默认起步加速时长（秒）：从 0 缓升到基准速度，模拟起步的那几秒 */
+    const val DEFAULT_SPEED_RAMP_SEC = 8.0
+    /** 默认到点前减速距离（米） */
+    const val DEFAULT_DECEL_DISTANCE_M = 100.0
+
     private const val RUN_SPEED_THRESHOLD = 2.2
     private const val GRAVITY = 9.80665f
 
@@ -83,9 +88,12 @@ object MotionRealism {
     private const val STEP_SALT = 0x57E9057EL
     private const val SLOW_SALT = 0x510D0FFFL
     private const val CADENCE_WANDER_SALT = 0x3A0D1F5L
+    private const val CADENCE_FAST_SALT = 0x9E3779B1L
 
     /** 步频独立的中频自然漂移幅度：真人固定步频也会每半分钟上下漂几个 SPM */
-    private const val CADENCE_WANDER_SHARE = 0.06
+    private const val CADENCE_WANDER_SHARE = 0.08
+    /** 更快的碎抖动：让步频曲线不会看起来是一条规整的低频正弦 */
+    private const val CADENCE_FAST_SHARE = 0.035
 
     /**
      * 若干个周期、相位随机的正弦叠加成的平滑噪声，取值范围 [-1, 1]。
@@ -170,7 +178,15 @@ object MotionRealism {
         val level: Level,
         speedFluctuationPct: Int,
         slowdown: SlowdownSettings = SlowdownSettings.OFF,
-        val cadenceDipPct: Int = DEFAULT_CADENCE_DIP_PCT
+        val cadenceDipPct: Int = DEFAULT_CADENCE_DIP_PCT,
+        /** 起步加速时长（秒），0 = 立即达到基准速度 */
+        val rampSec: Double = 0.0,
+        /** 本段要跑的总距离（米），<=0 = 不限；到时速度归零、位置停住（定位照常上报） */
+        val targetDistanceM: Double = 0.0,
+        /** 到点前多少米开始减速 */
+        val decelDistanceM: Double = 0.0,
+        /** 基准速度，用于把目标距离换算成时间；<=0 时退化为不减速 */
+        val baseSpeedMps: Double = 0.0
     ) {
         val speedFluctuationPct = speedFluctuationPct.coerceIn(0, MAX_SPEED_FLUCTUATION_PCT)
         val slowdown = slowdown.normalized()
@@ -184,6 +200,7 @@ object MotionRealism {
         private val speedNoise = SmoothNoise(startTimestamp xor SPEED_SALT, 20.0, 600.0)
         private val cadenceNoise = SmoothNoise(startTimestamp xor CADENCE_SALT, 3.0, 60.0)
         private val cadenceWander = SmoothNoise(startTimestamp xor CADENCE_WANDER_SALT, 15.0, 50.0)
+        private val cadenceFast = SmoothNoise(startTimestamp xor CADENCE_FAST_SALT, 2.0, 9.0)
         private val dips = if (this.slowdown.enabled) {
             DipSchedule(startTimestamp xor SLOW_SALT, this.slowdown)
         } else null
@@ -191,13 +208,65 @@ object MotionRealism {
         private fun variationAt(t: Double): Double = if (dips != null) speedNoise.downwardValue(t) else speedNoise.value(t)
         private fun variationIntegral(t: Double): Double = if (dips != null) speedNoise.downwardIntegral(t) else speedNoise.integral(t)
 
+        // ---------------------------------------------------------------- 起步加速与到点减速
+        // 两段都用余弦完成：速度连续、位置有解析式，多个进程按同一时刻算出的位移仍然一致。
+
+        /** 减速段长度（米）：目标比减速距离还短时就只能整段减速 */
+        private val decelSpanM: Double =
+            if (targetDistanceM <= 0.0) 0.0 else decelDistanceM.coerceIn(0.0, targetDistanceM)
+
+        /** 减速起点（秒）：基准速度走完「目标 - 减速段」的时刻 */
+        private val decelStartSec: Double =
+            if (decelSpanM <= 0.0 || baseSpeedMps <= 0.0) Double.POSITIVE_INFINITY
+            else ((targetDistanceM - decelSpanM) / baseSpeedMps).coerceAtLeast(0.0)
+
+        /** 减速段时长：∫ base·cos(πp/2) dt = base·T·2/π = decelSpanM */
+        private val decelSpanSec: Double =
+            if (decelSpanM <= 0.0 || baseSpeedMps <= 0.0) 0.0
+            else PI * decelSpanM / (2 * baseSpeedMps)
+
+        private val targetSec: Double = decelStartSec + decelSpanSec
+
+        /** 起步加速段少走的等效时间：匀速会走 R，加速只走了 (2/π)R */
+        private val rampLoss: Double = if (rampSec > 0.0) rampSec * (1 - 2 / PI) else 0.0
+
+        /**
+         * 速度倍率的积分（等效匀速时间）：乘基准速度就是不考虑噪声时的位移。
+         * 到点后饱和在目标距离，位置不再前进。
+         */
+        fun motionIntegral(elapsedSec: Double): Double {
+            val t = elapsedSec.coerceAtLeast(0.0)
+            if (targetDistanceM > 0.0 && t >= targetSec) {
+                return if (baseSpeedMps > 0.0) targetDistanceM / baseSpeedMps else 0.0
+            }
+            if (decelSpanSec > 0.0 && t >= decelStartSec) {
+                val p = ((t - decelStartSec) / decelSpanSec).coerceIn(0.0, 1.0)
+                val before = (decelStartSec - rampLoss).coerceAtLeast(0.0)
+                return before + decelSpanSec * (2 / PI) * sin(PI * p / 2)
+            }
+            if (rampSec > 0.0 && t < rampSec) {
+                return rampSec * (2 / PI) * (1 - cos(PI * t / (2 * rampSec)))
+            }
+            return t - rampLoss
+        }
+
+        /** 当前速度倍率：起步从 0 升到 1，到点前降到 0，其余恒为 1 */
+        fun speedFactor(elapsedSec: Double): Double {
+            val t = elapsedSec.coerceAtLeast(0.0)
+            if (targetDistanceM > 0.0 && t >= targetSec) return 0.0
+            if (decelSpanSec > 0.0 && t >= decelStartSec) {
+                val p = ((t - decelStartSec) / decelSpanSec).coerceIn(0.0, 1.0)
+                return cos(PI * p / 2)
+            }
+            if (rampSec > 0.0 && t < rampSec) return sin(PI * t / (2 * rampSec))
+            return 1.0
+        }
+
         /** 当前时刻由降速块造成的速度倍率偏移（只减速，恢复到基准后为 0）。 */
         fun slowdownAt(elapsedSec: Double): Double = dips?.envelope(elapsedSec) ?: 0.0
 
         fun speed(baseSpeed: Double, elapsedSec: Double): Double {
-            // 单向噪声与降速均有精确原函数，直接取导数，避免短缓变段被差分窗口抹平。
-            if (dips != null) return baseSpeed * (1 + fluctuation * variationAt(elapsedSec) + slowdownAt(elapsedSec))
-            // 由解析距离的对称差分给出：速度与位置导数天然一致，噪声校准/饱和只影响积分形状，
+            // 由解析距离的对称差分给出：速度与位置导数天然一致，起步/减速/到点都走同一条曲线，
             // 不会再出现「速度值与累计距离对不上」的破绽。差分窗口远小于最短噪声周期。
             val h = 0.25
             val lo = (elapsedSec - h).coerceAtLeast(0.0)
@@ -205,23 +274,29 @@ object MotionRealism {
             return (distance(baseSpeed, hi) - distance(baseSpeed, lo)) / (hi - lo)
         }
 
-        /** 从开始到 elapsedSec 的累计行进距离（米） */
-        fun distance(baseSpeed: Double, elapsedSec: Double): Double = baseSpeed * (
-            elapsedSec + fluctuation * variationIntegral(elapsedSec) + (dips?.integral(elapsedSec) ?: 0.0)
-            )
+        /** 从开始到 elapsedSec 的累计行进距离（米）；设了目标距离时到点饱和，不再增长 */
+        fun distance(baseSpeed: Double, elapsedSec: Double): Double {
+            val motion = motionIntegral(elapsedSec)
+            val noise = fluctuation * variationIntegral(elapsedSec) + (dips?.integral(elapsedSec) ?: 0.0)
+            val raw = baseSpeed * (motion + noise)
+            return if (targetDistanceM > 0.0) raw.coerceIn(0.0, targetDistanceM) else raw
+        }
 
-        fun cadence(baseCadenceSpm: Double, elapsedSec: Double): Double = baseCadenceSpm * (
+        fun cadence(baseCadenceSpm: Double, elapsedSec: Double): Double = baseCadenceSpm * speedFactor(elapsedSec) * (
             1 + CADENCE_SHARE_OF_SPEED * fluctuation * variationAt(elapsedSec) +
                 0.5 * level.cadenceVariation * cadenceNoise.value(elapsedSec) +
                 wanderShare * cadenceWander.value(elapsedSec) +
+                CADENCE_FAST_SHARE * cadenceFast.value(elapsedSec) +
                 cadenceDipShare * slowdownAt(elapsedSec)
             )
 
         /** 从开始到 elapsedSec 的累计步数（连续值，整数部分是步数，小数部分是当前这一步的相位） */
         fun steps(baseCadenceSpm: Double, elapsedSec: Double): Double = baseCadenceSpm / 60.0 * (
-            elapsedSec + CADENCE_SHARE_OF_SPEED * fluctuation * variationIntegral(elapsedSec) +
+            motionIntegral(elapsedSec) +
+                CADENCE_SHARE_OF_SPEED * fluctuation * variationIntegral(elapsedSec) +
                 0.5 * level.cadenceVariation * cadenceNoise.integral(elapsedSec) +
                 wanderShare * cadenceWander.integral(elapsedSec) +
+                CADENCE_FAST_SHARE * cadenceFast.integral(elapsedSec) +
                 cadenceDipShare * (dips?.integral(elapsedSec) ?: 0.0)
             )
 
@@ -262,18 +337,27 @@ object MotionRealism {
         levelId: Int,
         speedFluctuationPct: Int,
         slowdown: SlowdownSettings = SlowdownSettings.OFF,
-        cadenceDipPct: Int = DEFAULT_CADENCE_DIP_PCT
+        cadenceDipPct: Int = DEFAULT_CADENCE_DIP_PCT,
+        rampSec: Double = 0.0,
+        targetDistanceM: Double = 0.0,
+        decelDistanceM: Double = 0.0,
+        baseSpeedMps: Double = 0.0
     ): Session {
         val level = Level.fromId(levelId)
         val pct = speedFluctuationPct.coerceIn(0, MAX_SPEED_FLUCTUATION_PCT)
         val slow = slowdown.normalized()
         val dip = cadenceDipPct.coerceIn(0, MAX_CADENCE_DIP_PCT)
+        val ramp = rampSec.coerceIn(0.0, 60.0)
+        val target = targetDistanceM.coerceAtLeast(0.0)
+        val decel = decelDistanceM.coerceAtLeast(0.0)
+        val base = baseSpeedMps.coerceAtLeast(0.0)
         val c = cached
         if (c != null && c.startTimestamp == startTimestamp && c.level == level &&
             c.speedFluctuationPct == pct && c.slowdown == slow &&
-            c.cadenceDipPct == dip
+            c.cadenceDipPct == dip && c.rampSec == ramp && c.targetDistanceM == target &&
+            c.decelDistanceM == decel && c.baseSpeedMps == base
         ) return c
-        return Session(startTimestamp, level, pct, slow, dip).also { cached = it }
+        return Session(startTimestamp, level, pct, slow, dip, ramp, target, decel, base).also { cached = it }
     }
 
     // ---------------------------------------------------------------- 内置步态波形
