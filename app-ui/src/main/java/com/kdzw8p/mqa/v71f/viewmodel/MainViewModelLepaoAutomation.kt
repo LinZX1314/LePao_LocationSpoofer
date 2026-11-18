@@ -50,13 +50,12 @@ fun cancelLepaoAutomation() {
 }
 
 /**
- * 一键跑的轨迹来源：打卡点环线 > 当前画布路线 > 路线库最新一条 > 当前位置的直线兜底。
+ * 一键跑的轨迹来源：当前画布路线 > 路线库最新一条 > 打卡点环线 > 当前位置的直线兜底。
+ * 打卡点环线放在路线库后面：用户存了自己跑过的路线时应该先跑那条，环线只当兜底。
  * 返回用了哪条，给状态窗显示，避免“明明有路线库却说没选路线”。
  */
 private fun MainViewModel.ensureRunRoute(km: Double, account: String = ""): String {
-    // 路线以用户在画布上选的为准；没选时才用打卡点环线 / 路线库 / 直线兜底。
     if (_uiState.value.routePoints.size >= 2) return "当前路线"
-    checkpointLoopRoute(account, km)?.let { return it }
     val saved = _uiState.value.savedRoutes.firstOrNull { it.points.size >= 2 }
     if (saved != null) {
         _uiState.update {
@@ -67,6 +66,17 @@ private fun MainViewModel.ensureRunRoute(km: Double, account: String = ""): Stri
         }
         return saved.name
     }
+    val lastRoute = parseRoutePoints(settingsRepository.lepaoLastRouteJson)
+    if (lastRoute.size >= 2) {
+        _uiState.update {
+            it.copy(
+                routePoints = lastRoute,
+                routePlanStage = com.kdzw8p.mqa.v71f.data.model.RoutePlanStage.READY
+            )
+        }
+        return "上次路线"
+    }
+    checkpointLoopRoute(account, km)?.let { return it }
     val s = _uiState.value
     val lat = s.latitudeInput.toDoubleOrNull() ?: return "无路线"
     val lng = s.longitudeInput.toDoubleOrNull() ?: return "无路线"
@@ -79,6 +89,19 @@ private fun MainViewModel.ensureRunRoute(km: Double, account: String = ""): Stri
         ))
     }
     return "自动直线"
+}
+
+private fun parseRoutePoints(json: String): List<com.kdzw8p.mqa.v71f.data.model.RoutePoint> {
+    if (json.isBlank()) return emptyList()
+    return runCatching {
+        val arr = org.json.JSONArray(json)
+        buildList {
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                add(com.kdzw8p.mqa.v71f.data.model.RoutePoint(o.optDouble("lat"), o.optDouble("lng")))
+            }
+        }
+    }.getOrDefault(emptyList())
 }
 
 /**
@@ -113,10 +136,17 @@ private fun MainViewModel.checkpointLoopRoute(account: String, km: Double): Stri
     }
     if (raw.size < 2) return null
 
-    // 闭合多边形：末点回到起点，绕圈才能反复经过每个打卡点
-    val ring = (raw.sortedBy { it.idx }.distinctBy { "%.6f,%.6f".format(it.lat, it.lng) })
-        .let { it + it.first() }
-    if (ring.size < 3) return null
+    // 打卡点按 index 直连会自交（四个点常横跨操场），轨迹就成了星形。
+    // 先按绕质心的方位角排序，再用闭合 Catmull-Rom 插值：曲线经过每个打卡点、不自交，
+    // 看起来就是绕场地跑的正常环线；点几乎共线时退化成体育场形（两平行边 + 两个半圆）。
+    val control = raw.sortedBy { it.idx }
+        .distinctBy { "%.6f,%.6f".format(it.lat, it.lng) }
+        .map { RingPoint(it.lat, it.lng) }
+    if (control.size < 2) return null
+    val ordered = ringOrder(control)
+    val loop = smoothClosedRing(ordered)
+    if (loop.size < 3) return null
+    val ring = loop + loop.first()
     val segs = ring.zipWithNext().map { (a, b) -> metersBetween(a.lat, a.lng, b.lat, b.lng) }
     val perimeter = segs.sum()
     if (perimeter < 40.0) return null
@@ -157,7 +187,94 @@ private fun MainViewModel.checkpointLoopRoute(account: String, km: Double): Stri
         )
     }
     val per = String.format(java.util.Locale.US, "%.0f", perimeter)
-    return "打卡点环线(${ring.size - 1}点·${per}m/圈)"
+    return "打卡点环线(${ordered.size}点·${per}m/圈)"
+}
+
+private data class RingPoint(val lat: Double, val lng: Double)
+
+/**
+ * 把打卡点排成一条不自交的闭合顺序：绕质心按方位角排序。
+ * 点几乎落在一条直线上时（操场两侧的打卡点很常见），方位角排序会退化成来回跑，
+ * 这时改成体育场形：两端点 + 垂直方向各偏 15 米。
+ */
+private fun ringOrder(points: List<RingPoint>): List<RingPoint> {
+    if (points.size == 2) return stadiumRing(points[0], points[1], 30.0)
+    if (points.size < 3) return points
+    val cy = points.sumOf { it.lat } / points.size
+    val cx = points.sumOf { it.lng } / points.size
+    val sorted = points.sortedBy { Math.atan2(it.lat - cy, it.lng - cx) }
+    // 共线检测：最远两点连线，其余点到它的最大垂距太小就不当多边形用。
+    var fa = sorted[0]
+    var fb = sorted[1]
+    var best = -1.0
+    for (i in sorted.indices) for (j in i + 1 until sorted.size) {
+        val d = metersBetween(sorted[i].lat, sorted[i].lng, sorted[j].lat, sorted[j].lng)
+        if (d > best) { best = d; fa = sorted[i]; fb = sorted[j] }
+    }
+    val maxOffset = sorted.maxOf { pointToSegmentMeters(it, fa, fb) }
+    return if (best < 40.0 || maxOffset < 3.0) stadiumRing(fa, fb, 30.0) else sorted
+}
+
+/** 到线段的距离（米）；用作共线判定。 */
+private fun pointToSegmentMeters(p: RingPoint, a: RingPoint, b: RingPoint): Double {
+    val cosLat = kotlin.math.cos(Math.toRadians((a.lat + b.lat) / 2)).coerceAtLeast(0.01)
+    val px = (p.lng - a.lng) * 111320.0 * cosLat
+    val py = (p.lat - a.lat) * 111320.0
+    val bx = (b.lng - a.lng) * 111320.0 * cosLat
+    val by = (b.lat - a.lat) * 111320.0
+    val len2 = bx * bx + by * by
+    if (len2 <= 1e-9) return kotlin.math.hypot(px, py)
+    val t = ((px * bx + py * by) / len2).coerceIn(0.0, 1.0)
+    return kotlin.math.hypot(px - bx * t, py - by * t)
+}
+
+/** 两端点 + 垂直方向各偏移半个宽度，形成一圈体育场形路线。 */
+private fun stadiumRing(a: RingPoint, b: RingPoint, widthMeters: Double): List<RingPoint> {
+    val midLat = (a.lat + b.lat) / 2
+    val cosLat = kotlin.math.cos(Math.toRadians(midLat)).coerceAtLeast(0.01)
+    val dx = (b.lng - a.lng) * 111320.0 * cosLat
+    val dy = (b.lat - a.lat) * 111320.0
+    val len = kotlin.math.hypot(dx, dy)
+    if (len < 1e-6) return listOf(a, b)
+    val half = widthMeters / 2
+    val ox = -dy / len * half
+    val oy = dx / len * half
+    val dLat = oy / 111320.0
+    val dLng = ox / (111320.0 * cosLat)
+    return listOf(
+        RingPoint(a.lat + dLat, a.lng + dLng),
+        RingPoint(b.lat + dLat, b.lng + dLng),
+        RingPoint(b.lat - dLat, b.lng - dLng),
+        RingPoint(a.lat - dLat, a.lng - dLng)
+    )
+}
+
+/** 闭合 Catmull-Rom：曲线经过每个控制点，转角自然圆滑，不会把打卡点裁掉。 */
+private fun smoothClosedRing(points: List<RingPoint>, samplesPerSegment: Int = 6): List<RingPoint> {
+    if (points.size < 3) return points
+    val n = points.size
+    val out = ArrayList<RingPoint>(n * samplesPerSegment)
+    for (i in 0 until n) {
+        val p0 = points[(i - 1 + n) % n]
+        val p1 = points[i]
+        val p2 = points[(i + 1) % n]
+        val p3 = points[(i + 2) % n]
+        for (s in 0 until samplesPerSegment) {
+            val t = s.toDouble() / samplesPerSegment
+            val t2 = t * t
+            val t3 = t2 * t
+            fun v(a: Double, b: Double, c: Double, d: Double): Double = 0.5 * (
+                2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3
+                )
+            out.add(
+                RingPoint(
+                    v(p0.lat, p1.lat, p2.lat, p3.lat),
+                    v(p0.lng, p1.lng, p2.lng, p3.lng)
+                )
+            )
+        }
+    }
+    return out
 }
 
 /** 球面距离（米）：打卡半径是米，路线长度也按米算，避免经纬度直接相加的误差。 */
@@ -188,6 +305,24 @@ fun MainViewModel.getLepaoRunKmFemale(): String = settingsRepository.lepaoRunKmF
 fun MainViewModel.setLepaoRunKm(male: String, female: String) {
     settingsRepository.lepaoRunKmMale = male
     settingsRepository.lepaoRunKmFemale = female
+}
+
+fun MainViewModel.getLepaoMinPaceMale(): String = settingsRepository.lepaoMinPaceMaleSec
+
+fun MainViewModel.getLepaoMinPaceFemale(): String = settingsRepository.lepaoMinPaceFemaleSec
+
+fun MainViewModel.setLepaoMinPace(male: String, female: String) {
+    settingsRepository.lepaoMinPaceMaleSec = male
+    settingsRepository.lepaoMinPaceFemaleSec = female
+}
+
+/** 当前账号的最低平均配速（秒/公里）：按身份性别取男女各自的设置；0 = 不限制 */
+internal fun MainViewModel.minPaceSecFor(name: String): Double {
+    val identity = settingsRepository.getLepaoProfile(name)?.optString("lepao_identity_json").orEmpty()
+    val sex = runCatching { org.json.JSONObject(identity).optString("sex") }.getOrDefault("")
+    val raw = if (sex.contains("女")) settingsRepository.lepaoMinPaceFemaleSec
+    else settingsRepository.lepaoMinPaceMaleSec
+    return raw.toDoubleOrNull()?.coerceIn(0.0, 1200.0) ?: 0.0
 }
 
 /**
@@ -225,6 +360,8 @@ fun MainViewModel.runLepaoAutomation(names: List<String>, kmMale: Double = 0.0, 
         Toast.makeText(context, "先在路线页选一条路线，或在定位页放一个点", Toast.LENGTH_LONG).show()
         return
     }
+    // 锁定本次批量用的路线：每个号结束会 stopRoutePlanning 清空画布，不锁住第二个号就掉回打卡点环线。
+    val lockedRoute = _uiState.value.routePoints
     val phases = names.map { LepaoAutomationItem(it, "待跑") }.toMutableList()
     // 每个账号的目标公里不同（按性别），状态窗显示当前账号的那个
     var currentKm = 0.0
@@ -250,6 +387,11 @@ fun MainViewModel.runLepaoAutomation(names: List<String>, kmMale: Double = 0.0, 
             // 切号会写回该账号的坐标，这里再确认一次轨迹，并把用的哪条路线告知用户
             // 每个账号都从路线起点重新开始；循环由 startSimulationWithPoints 统一开启，
             // 不再把运行模式强改成 LOOP —— 摇杆（MANUAL）是默认，一键跑会在 1.5s 后自动替用户按开始。
+            // 上一个号结束时 stopRoutePlanning 清空了画布，这里先放回锁定的那条路线，
+            // 否则 ensureRunRoute 会以为没选路线、掉回打卡点环线。
+            if (lockedRoute.size >= 2 && _uiState.value.routePoints.size < 2) {
+                _uiState.update { it.copy(routePoints = lockedRoute) }
+            }
             val routeName = ensureRunRoute(targetKm, name)
             phases[i] = LepaoAutomationItem(name, "路线：${routeName}（循环）")
             publish(i, name, "路线：${routeName}（循环）")

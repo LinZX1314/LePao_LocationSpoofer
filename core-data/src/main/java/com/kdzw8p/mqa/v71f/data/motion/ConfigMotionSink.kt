@@ -43,6 +43,8 @@ class ConfigMotionSink(
             json.put("sim_bearing", bearing.toDouble())
             json.put("speed_m_s", preset.speedMs)
             json.put("start_timestamp", startTimestamp)
+            // 摇杆模式会反复重写 start_timestamp，配速底线需要一条不会变的会话起点
+            json.put("route_started_at", startTimestamp)
             json.put("route_distance_offset", distanceOffset)
             json.put("stop_at_destination", stopAtDestination)
         }

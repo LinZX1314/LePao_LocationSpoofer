@@ -603,6 +603,20 @@ class SettingsManager(private val context: Context) {
         get() = prefs.getString("lepao_run_km_female", "1.5") ?: "1.5"
         set(value) = prefs.edit().putString("lepao_run_km_female", value.trim()).apply()
 
+    /** 最低平均配速（秒/公里）：男女分开，模拟均速低于它时自动加速；0 = 不限制 */
+    var lepaoMinPaceMaleSec: String
+        get() = prefs.getString("lepao_min_pace_male_sec", "320") ?: "320"
+        set(value) = prefs.edit().putString("lepao_min_pace_male_sec", value.trim()).apply()
+
+    var lepaoMinPaceFemaleSec: String
+        get() = prefs.getString("lepao_min_pace_female_sec", "360") ?: "360"
+        set(value) = prefs.edit().putString("lepao_min_pace_female_sec", value.trim()).apply()
+
+    /** 最近一次开始模拟用的路线（JSON 点串）：批量跑/重启后优先恢复它，避免掉回打卡点环线 */
+    var lepaoLastRouteJson: String
+        get() = prefs.getString("lepao_last_route_json", "") ?: ""
+        set(value) = prefs.edit().putString("lepao_last_route_json", value).apply()
+
     /** 最近一次导出的设备指纹快照（Build 字段 / AndroidID / 屏幕参数），随档案一起搬走 */
     var lepaoDeviceFingerprint: String
         get() = prefs.getString("lepao_device_fingerprint", "") ?: ""

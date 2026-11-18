@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -110,6 +112,7 @@ fun SystemHookAppsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
         ) {
             // 顶部导航栏
             Row(
@@ -483,10 +486,12 @@ fun SystemHookAppsScreen(
             } else {
                 Box(
                     modifier = Modifier
-                        .weight(1f)
                         .fillMaxWidth()
+                        .height(420.dp)
                 ) {
                     LazyColumn(
+                        // Column 内用 fillMaxSize 会按整列高度测量，把列表推到可视区之外，
+                        // 页面本身又不可滚动 → 顶部开关和搜索栏被截断且滑不下去。用 weight 占剩余空间。
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
                             start = 16.dp,

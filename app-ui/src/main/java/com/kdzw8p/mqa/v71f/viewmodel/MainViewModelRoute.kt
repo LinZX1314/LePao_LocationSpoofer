@@ -388,7 +388,16 @@ private fun MainViewModel.startSimulationWithPoints(pointsToRun: List<RoutePoint
 /** 一键跑/批量跑：总是从路线起点重开，不复用上次剩余进度。 */
 internal fun MainViewModel.startRouteFromBeginning() {
     val points = _uiState.value.routePoints
-    if (points.size >= 2) startSimulationWithPoints(points, _uiState.value)
+    if (points.size >= 2) {
+        // 最低均速按账号性别在开始前快照一次，随配置下发到宿主；中途改设置不影响本次
+        com.kdzw8p.mqa.v71f.data.state.SpoofingState.minPaceSecPerKm =
+            minPaceSecFor(settingsRepository.lepaoActiveAccount)
+        // 记住这条路线：批量跑每号结束会清画布，重启后画布也是空的，靠它恢复。
+        settingsRepository.lepaoLastRouteJson = points.joinToString(",", "[", "]") {
+            "{\"lat\":${it.lat},\"lng\":${it.lng}}"
+        }
+        startSimulationWithPoints(points, _uiState.value)
+    }
 }
 
 internal fun MainViewModel.cancelRoutePlanning() {

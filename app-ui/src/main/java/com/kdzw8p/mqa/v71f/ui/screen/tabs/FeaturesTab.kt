@@ -103,6 +103,9 @@ import com.kdzw8p.mqa.v71f.viewmodel.lepaoProfileRows
 import com.kdzw8p.mqa.v71f.viewmodel.runLepaoAutomation
 import com.kdzw8p.mqa.v71f.viewmodel.getLepaoRunKmMale
 import com.kdzw8p.mqa.v71f.viewmodel.getLepaoRunKmFemale
+import com.kdzw8p.mqa.v71f.viewmodel.getLepaoMinPaceMale
+import com.kdzw8p.mqa.v71f.viewmodel.getLepaoMinPaceFemale
+import com.kdzw8p.mqa.v71f.viewmodel.setLepaoMinPace
 import com.kdzw8p.mqa.v71f.viewmodel.setLepaoRunKm
 import com.kdzw8p.mqa.v71f.ui.screen.settings.LepaoAutomationConfirm
 import com.kdzw8p.mqa.v71f.viewmodel.acceptLepaoUserExport
@@ -462,7 +465,9 @@ fun FeaturesTab(
                             onEditRemark = { row -> remarkInput = row.remark; remarkAccount = row },
                             onRunAccount = { name ->
                                 runConfirm = LepaoAutomationConfirm(
-                                    listOf(name), viewModel.getLepaoRunKmMale(), viewModel.getLepaoRunKmFemale()
+                                    listOf(name), viewModel.getLepaoRunKmMale(), viewModel.getLepaoRunKmFemale(),
+                                    paceMale = viewModel.getLepaoMinPaceMale(),
+                                    paceFemale = viewModel.getLepaoMinPaceFemale()
                                 )
                             },
                             onRunAll = {
@@ -477,7 +482,9 @@ fun FeaturesTab(
                                         names,
                                         viewModel.getLepaoRunKmMale(),
                                         viewModel.getLepaoRunKmFemale(),
-                                        rows.associate { it.name to (it.runsOn(today) ?: -1) }
+                                        rows.associate { it.name to (it.runsOn(today) ?: -1) },
+                                        paceMale = viewModel.getLepaoMinPaceMale(),
+                                        paceFemale = viewModel.getLepaoMinPaceFemale()
                                     )
                                 }
                             },
@@ -487,9 +494,10 @@ fun FeaturesTab(
                         com.kdzw8p.mqa.v71f.ui.screen.settings.LepaoAutomationDialogs(
                             confirm = runConfirm,
                             onDismissConfirm = { runConfirm = null },
-                            onStart = { names, male, female ->
+                            onStart = { names, male, female, paceMale, paceFemale ->
                                 runConfirm = null
                                 viewModel.setLepaoRunKm(male.toString(), female.toString())
+                                viewModel.setLepaoMinPace(paceMale.toString(), paceFemale.toString())
                                 viewModel.runLepaoAutomation(names, male, female)
                             }
                         )

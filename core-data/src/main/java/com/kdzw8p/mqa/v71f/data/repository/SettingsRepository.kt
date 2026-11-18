@@ -367,6 +367,20 @@ class SettingsRepository(private val settingsManager: SettingsManager) {
         get() = settingsManager.lepaoRunKmMale
         set(value) { settingsManager.lepaoRunKmMale = value }
 
+    /** 最低平均配速（秒/公里）：男/女分开，模拟均速低于它时自动加速 */
+    var lepaoMinPaceMaleSec: String
+        get() = settingsManager.lepaoMinPaceMaleSec
+        set(value) { settingsManager.lepaoMinPaceMaleSec = value }
+
+    var lepaoMinPaceFemaleSec: String
+        get() = settingsManager.lepaoMinPaceFemaleSec
+        set(value) { settingsManager.lepaoMinPaceFemaleSec = value }
+
+    /** 最近一次开始模拟用的路线点串，供批量跑恢复 */
+    var lepaoLastRouteJson: String
+        get() = settingsManager.lepaoLastRouteJson
+        set(value) { settingsManager.lepaoLastRouteJson = value }
+
     var lepaoRunKmFemale: String
         get() = settingsManager.lepaoRunKmFemale
         set(value) { settingsManager.lepaoRunKmFemale = value }

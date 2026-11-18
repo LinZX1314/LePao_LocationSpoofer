@@ -242,6 +242,21 @@ internal fun CompactJoystickOverlay(
                                     autoStopKm = value.toDouble()
                                     if (autoStop) applyAutoStop()
                                 }
+                                // 最低均速（分钟/公里）：模拟慢于它时宿主侧自动加速；男女分开，按账号性别选
+                                CompactValueControl(
+                                    "最低配速 男",
+                                    (settings.lepaoMinPaceMaleSec.toFloatOrNull() ?: 320f) / 60f,
+                                    4f..12f, 1, onNeedKeyboard
+                                ) { value ->
+                                    settings.lepaoMinPaceMaleSec = (value * 60f).roundToInt().toString()
+                                }
+                                CompactValueControl(
+                                    "最低配速 女",
+                                    (settings.lepaoMinPaceFemaleSec.toFloatOrNull() ?: 360f) / 60f,
+                                    4f..12f, 1, onNeedKeyboard
+                                ) { value ->
+                                    settings.lepaoMinPaceFemaleSec = (value * 60f).roundToInt().toString()
+                                }
                             }
                         }
                     }

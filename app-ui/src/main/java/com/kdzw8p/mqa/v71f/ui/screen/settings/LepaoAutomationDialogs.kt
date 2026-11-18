@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,20 +41,39 @@ data class LepaoAutomationConfirm(
     val kmMale: String,
     val kmFemale: String,
     /** 每个账号今日已跑次数：-1 = 今日未确认，0 = 今日未跑，>0 = 已跑。仅批量跑用于跳过判定。 */
-    val todayRunCounts: Map<String, Int> = emptyMap()
+    val todayRunCounts: Map<String, Int> = emptyMap(),
+    /** 最低平均配速（秒/公里），男女分开；会按账号性别选用 */
+    val paceMale: String = "320",
+    val paceFemale: String = "360"
 )
+
+/** 秒/公里 → "5:20"，解析不出来就原样返回 */
+private fun paceLabel(raw: String): String =
+    raw.toIntOrNull()?.takeIf { it > 0 }?.let { "%d:%02d".format(it / 60, it % 60) } ?: raw
+
+/** "5:20" / "5:20" / "320" → 秒；非法返回 null */
+private fun parsePaceSeconds(text: String): Int? {
+    val parts = text.trim().split(':').mapNotNull { it.trim().toIntOrNull() }
+    return when (parts.size) {
+        2 -> parts[0] * 60 + parts[1]
+        1 -> parts[0]
+        else -> null
+    }?.takeIf { it > 0 }
+}
 
 @Composable
 fun LepaoAutomationDialogs(
     confirm: LepaoAutomationConfirm?,
     onDismissConfirm: () -> Unit,
-    onStart: (List<String>, Double, Double) -> Unit
+    onStart: (List<String>, Double, Double, Int, Int) -> Unit
 ) {
     val automation by lepaoAutomationState.collectAsState()
 
     if (confirm != null) {
         var maleText by remember(confirm) { mutableStateOf(confirm.kmMale.ifBlank { "1.8" }) }
         var femaleText by remember(confirm) { mutableStateOf(confirm.kmFemale.ifBlank { "1.5" }) }
+        var paceMaleText by remember(confirm) { mutableStateOf(paceLabel(confirm.paceMale)) }
+        var paceFemaleText by remember(confirm) { mutableStateOf(paceLabel(confirm.paceFemale)) }
         // 批量跑默认跳过今日已跑：避免重复刷同一天的成绩，单账号时该开关不显示。
         var skipTodayDone by remember(confirm) { mutableStateOf(true) }
         val batch = confirm.names.size > 1
@@ -68,7 +90,11 @@ fun LepaoAutomationDialogs(
                         val male = maleText.toDoubleOrNull()
                         val female = femaleText.toDoubleOrNull()
                         if (male != null && male > 0.0 && female != null && female > 0.0) {
-                            onStart(targets, male, female)
+                            onStart(
+                                targets, male, female,
+                                parsePaceSeconds(paceMaleText) ?: 320,
+                                parsePaceSeconds(paceFemaleText) ?: 360
+                            )
                         }
                     }
                 ) { Text("开始") }
@@ -81,7 +107,12 @@ fun LepaoAutomationDialogs(
                 )
             },
             text = {
-                Column {
+                // 六个账号、四组输入加复选框时内容会超过屏幕高度；不滚动的话底部按钮会被挤出可视区。
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 460.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
                     Text("到达目标公里后自动结束并上传；按账号身份性别自动选长度", fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
@@ -97,6 +128,24 @@ fun LepaoAutomationDialogs(
                         onValueChange = { femaleText = it },
                         singleLine = true,
                         label = { Text("女生目标（公里）") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("最低均速（分:秒 / 公里）：不够就自动加速，到点还差就多跑一段直到达标", fontSize = 11.sp)
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = paceMaleText,
+                        onValueChange = { paceMaleText = it },
+                        singleLine = true,
+                        label = { Text("男生最低配速") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = paceFemaleText,
+                        onValueChange = { paceFemaleText = it },
+                        singleLine = true,
+                        label = { Text("女生最低配速") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (batch) {

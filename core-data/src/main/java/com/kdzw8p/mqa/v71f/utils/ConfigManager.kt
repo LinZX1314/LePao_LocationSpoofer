@@ -193,6 +193,12 @@ class ConfigManager(private val context: Context, private val rootManager: RootM
         json.put("target_distance_m", if (autoStopKm > 0.0) autoStopKm * 1000.0 else 0.0)
         json.put("speed_ramp_sec", MotionRealism.DEFAULT_SPEED_RAMP_SEC)
         json.put("target_decel_m", MotionRealism.DEFAULT_DECEL_DISTANCE_M)
+        // 最低平均配速（秒/公里）：优先用本次会话按账号性别快照的值，没有就回退到男生默认；0 = 不限制
+        json.put("min_pace_sec_per_km", if (SpoofingState.minPaceSecPerKm > 0.0) {
+            SpoofingState.minPaceSecPerKm
+        } else {
+            settingsManager.lepaoMinPaceMaleSec.toDoubleOrNull() ?: 320.0
+        })
         // 运动真实度：Xposed 端据此给速度、步频、海拔、加速度加起伏；随机强度与速度浮动在会话内取开始时的快照
         json.put("realism_level", SpoofingState.realismLevel.takeIf { it >= 0 } ?: settingsManager.realismLevel)
         // 路径抖动幅度与整条路线横向平移：Xposed 端按这两个值改轨迹形态

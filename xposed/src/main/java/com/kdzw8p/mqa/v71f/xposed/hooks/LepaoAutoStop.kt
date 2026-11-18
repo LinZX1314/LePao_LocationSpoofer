@@ -89,9 +89,18 @@ internal object LepaoAutoStop {
         // 自动结束会一直不触发；统一走全窗口根视图。
         val distance = (findByAllRoots(DISTANCE_ID) as? TextView)
             ?.text?.toString()?.trim()?.toDoubleOrNull() ?: return
-        // 模拟层在目标距离处已经把速度归零（位置停住但继续上报），乐跑自己累加的里程可能比目标
-        // 差十几米；留 15 米容差，否则读数永远够不到阈值、一直不停。
-        if (distance < targetKm - 0.015 || activity.hashCode() == triggeredFor) return
+        // 模拟层在目标距离处已经把速度归零（位置停住但继续上报），乐跑自己累加的里程会停在
+        // 阈值下方；如果只等它凑够，计时会在原地空转，平均配速被拖成「速度过慢」。
+        // 模块自己的行程（含 offset、到目标饱和）才是准的：两边任一到达就触发。
+        val cfg = config()
+        val simulated = if (cfg == null) null else runCatching {
+            com.kdzw8p.mqa.v71f.xposed.utils.RouteEngine.traveledMeters(cfg)
+        }.getOrNull()
+        val bySimulation = simulated != null && simulated >= targetKm * 1000.0 - 1.0
+        if ((distance < targetKm - 0.015 && !bySimulation) || activity.hashCode() == triggeredFor) return
+        if (bySimulation && distance < targetKm - 0.015) {
+            XposedBridge.log("[R7VqzN] auto-stop: simulated=${String.format(java.util.Locale.US, "%.0f", simulated)}m reached, ui=$distance km")
+        }
 
         // 到点不等于该结束：定向打卡跑区还要求打满打卡点。tv_log_count 是已打卡数，
         // tv_tip 会显示「待分配(再跑 N 米后分配打卡点)」。没走完就继续跑，
@@ -113,6 +122,9 @@ internal object LepaoAutoStop {
             }
             return
         }
+
+        // 均速不够就继续跑的做法会把 1.8 公里无限拖下去（乐跑判的是全程均值，跑完就定），
+        // 真正该做的是把速度拉到位，而不是到点了还不结束。这里只保留里程判定。
 
         val stop = findByAllRoots(STOP_ID)
         if (stop != null && stop.visibility == View.VISIBLE && stop.isShown) {
@@ -400,6 +412,17 @@ internal object LepaoAutoStop {
             automationBusy = false
             autoKm = null
         }, 12_000)
+    }
+
+    /** 乐跑计时器文本（mm:ss / h:mm:ss）转秒；读不到返回 0。 */
+    private fun parseChronoSeconds(text: String): Long {
+        val parts = text.split(':').mapNotNull { it.trim().toLongOrNull() }
+        return when (parts.size) {
+            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+            2 -> parts[0] * 60 + parts[1]
+            1 -> parts[0]
+            else -> 0L
+        }
     }
 
     private fun findByAllRoots(name: String): View? {
